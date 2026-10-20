@@ -1,0 +1,10 @@
+services:
+  db:
+    image: pgvector/pgvector:pg18
+    env_file: .env
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./db/init:/docker-entrypoint-initdb.d
+volumes:
+  pgdata:

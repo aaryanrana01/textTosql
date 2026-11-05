@@ -390,8 +390,8 @@
       }
     ],
     "primary_key": [
-      "film_id",
-      "category_id"
+      "category_id",
+      "film_id"
     ],
     "foreign_keys": [
       {
@@ -510,7 +510,23 @@
       "payment_date",
       "payment_id"
     ],
-    "foreign_keys": []
+    "foreign_keys": [
+      {
+        "column": "customer_id",
+        "ref_table": "customer",
+        "ref_column": "customer_id"
+      },
+      {
+        "column": "rental_id",
+        "ref_table": "rental",
+        "ref_column": "rental_id"
+      },
+      {
+        "column": "staff_id",
+        "ref_table": "staff",
+        "ref_column": "staff_id"
+      }
+    ]
   },
   "rental": {
     "columns": [
@@ -612,26 +628,6 @@
         "name": "active",
         "type": "boolean",
         "nullable": false
-      },
-      {
-        "name": "username",
-        "type": "text",
-        "nullable": false
-      },
-      {
-        "name": "password",
-        "type": "text",
-        "nullable": true
-      },
-      {
-        "name": "last_update",
-        "type": "timestamp with time zone",
-        "nullable": false
-      },
-      {
-        "name": "picture",
-        "type": "bytea",
-        "nullable": true
       }
     ],
     "primary_key": [

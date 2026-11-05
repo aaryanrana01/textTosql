@@ -1,0 +1,79 @@
+# Human-written descriptions of each table and its non-obvious columns.
+# Used in prompts and embedded for schema retrieval.
+tables:
+  actor:
+    description: Actors who appear in films.
+    columns:
+      first_name: Stored in UPPERCASE, e.g. PENELOPE.
+      last_name: Stored in UPPERCASE, e.g. GUINESS.
+  address:
+    description: Postal addresses of customers, staff and stores.
+    columns:
+      district: Region within the city.
+      city_id: City of this address.
+  category:
+    description: Film categories (genres) such as Action, Comedy, Horror and Sci-Fi, 16 in total. Needed for any question about categories or genres.
+    columns:
+      name: Category (genre) name.
+  city:
+    description: Cities where customers, staff and stores are located. Use to filter or group by city.
+    columns:
+      city: City name.
+  country:
+    description: Countries where customers, staff and stores are located, e.g. India or Canada. Use to filter or group by country.
+    columns:
+      country: Country name.
+  customer:
+    description: Customers who rent films. Each customer has a home store.
+    columns:
+      store_id: The customer's home store. Only stores 1 and 2 have customers.
+      first_name: Stored in UPPERCASE.
+      last_name: Stored in UPPERCASE.
+      activebool: True if the customer account is active.
+      active: Legacy integer flag (1 = active). Prefer activebool.
+      create_date: Date the customer signed up.
+  film:
+    description: The film catalog (1,000 titles).
+    columns:
+      title: Stored in UPPERCASE.
+      language_id: Language of the film.
+      rental_duration: Allowed rental period in days before a return counts as late. Not the actual time a customer kept the film.
+      rental_rate: Price charged to rent the film.
+      length: Running time in minutes.
+      length_hours: Running time in hours, computed from length.
+      replacement_cost: Amount charged if the film is never returned.
+      rating: MPAA rating.
+      special_features: Extras such as Trailers or Deleted Scenes.
+      fulltext: Full-text search vector of title and description; query with @@ to_tsquery().
+  film_actor:
+    description: Links films to the actors who appear in them (many-to-many).
+  film_category:
+    description: Links films to their categories (genres). A film can belong to more than one category. Needed to connect films, rentals or revenue to categories.
+  inventory:
+    description: Physical copies (DVDs) of films held by stores. Rentals reference a specific copy.
+    columns:
+      store_id: Store that owns this copy.
+  language:
+    description: Languages a film can be in.
+  payment:
+    description: Customer payments for rentals, i.e. orders, transactions and sales. All money and revenue figures come from payment.amount.
+    columns:
+      amount: Amount paid.
+      payment_date: When the payment was made.
+      rental_id: The rental this payment is for.
+      staff_id: Staff member who processed the payment.
+  rental:
+    description: Each time a customer rents a copy of a film.
+    columns:
+      rental_date: When the film was rented.
+      return_date: When the film was returned. NULL means not yet returned.
+      inventory_id: The copy rented. Join inventory to reach the film and the store.
+      staff_id: Staff member who processed the rental.
+  staff:
+    description: Store employees who process rentals and payments.
+    columns:
+      store_id: Store the employee works at.
+  store:
+    description: Store locations. Only stores 1 and 2 are active (they have staff, customers and inventory).
+    columns:
+      manager_staff_id: Staff member who manages the store.

@@ -25,5 +25,9 @@ class Settings(BaseSettings):
     max_limit: int = 1000              # LIMIT added to queries that have none
     max_query_cost: float = 1_000_000  # EXPLAIN cost above which a query is rejected
 
+    # Schema retrieval
+    schema_retrieval: bool = True   # False = send every table (for comparison runs)
+    retrieval_top_k: int = 4        # tables retrieved before join-path expansion
+
 
 settings = Settings()

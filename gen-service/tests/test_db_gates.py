@@ -60,3 +60,8 @@ def test_reader_cannot_see_app_schema():
     with reader_conn() as conn:
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             conn.execute("SELECT * FROM app.request_log")
+
+def test_reader_cannot_read_staff_credentials():
+    with reader_conn() as conn:
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            conn.execute("SELECT password FROM staff")

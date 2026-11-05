@@ -37,13 +37,14 @@ ORDER BY e.enumsortorder;
 """
 
 KEYS_SQL = """
-SELECT con.contype, a.attname, rc.relname, ra.attname
+SELECT DISTINCT con.contype, a.attname, rc.relname, ra.attname
 FROM pg_constraint con
 CROSS JOIN LATERAL unnest(con.conkey, con.confkey) AS k(col, refcol)
 JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.col
 LEFT JOIN pg_class rc ON rc.oid = con.confrelid
 LEFT JOIN pg_attribute ra ON ra.attrelid = con.confrelid AND ra.attnum = k.refcol
-WHERE con.conrelid = %s::regclass
+WHERE (con.conrelid = %s::regclass
+       OR con.conrelid IN (SELECT inhrelid FROM pg_inherits WHERE inhparent = %s::regclass))
   AND con.contype IN ('p', 'f');
 """
 
@@ -84,7 +85,7 @@ def main() -> None:
                         col["allowed_values"] = values
                 columns.append(col)
 
-            cur.execute(KEYS_SQL, (f"public.{table}",))
+            cur.execute(KEYS_SQL, (f"public.{table}", f"public.{table}"))
             primary_key, foreign_keys = [], []
             for contype, column, ref_table, ref_column in cur.fetchall():
                 if contype == "p":

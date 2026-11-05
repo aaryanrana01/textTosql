@@ -29,32 +29,54 @@ This file records every evaluation run of the text-to-SQL pipeline. Each row sho
 |---|---|---|---|---|---|---|---|
 | baseline | 2026-11-05 | 48/50 (96%) | 2/10 (20%) | 0/8 (0%) | 691 ms | 774 + 104 | Full schema in prompt, no safety gates |
 | gates | 2026-11-06 | 48/50 (96%) | 2/10 (20%) | 0/8 (0%) | not saved | not saved | sqlglot validation (6 gates) + EXPLAIN cost check |
+| retry | 2026-11-06 | 49/50 (98%) | 2/10 (20%) | 0/8 (0%) | 711 ms | 814 + 121 | Self-correcting retry loop (up to 3 attempts) |
+| retrieval | pending | | | | | | Table descriptions + pgvector schema retrieval (k=4) |
 
-Core breakdown for both runs: easy 15/15, medium 20/20, hard 13/15.
+Core breakdown: baseline and gates, easy 15/15, medium 20/20, hard 13/15. Retry: easy 15/15, medium 20/20, hard 14/15.
+
+## Schema retrieval recall
+Measured with `evals/retrieval_recall.py` (no LLM tokens): for each answerable question, does retrieval (top-k tables plus join-path expansion) include every table the reference SQL uses?
+
+| Change | Recall at k=4 | Avg tables per prompt |
+|---|---|---|
+| First version | 53/60 (88%) | 4.7 |
+| Fixed missing foreign keys on partitioned `payment` table | 55/60 (92%) | 4.8 |
+| Clearer, general table descriptions | 57/60 (95%) | 4.9 |
+| Junction tables bring both connected tables | 59/60 (98%) | 5.2 |
+
+- **Remaining miss:** b07 ("best performer"), a business term the schema can't define. Assigned to the semantic layer (Phase 5).
+- **Prompt size:** the full schema with descriptions is ~1,133 tokens; a typical retrieved schema is ~628 (about 45% less). Example: the top-5-categories-by-revenue question received 6 tables (`category`, `film`, `film_category`, `inventory`, `payment`, `rental`) and 798 prompt tokens in total, including rules.
+- **k=4 was chosen** because higher values add tables without finding any more of the needed ones.
 
 ## Notes by run
 
 ### baseline
 - **h06 (late-return percentage):** wrong answer. The model ignored "among returned rentals", so the 241 unreturned rentals were counted in the denominator. The query ran fine; it was logically wrong.
-- **h13 (revenue share by rating):** SQL error. A cross-joined total was used outside `GROUP BY`. Expected to be fixed by the retry loop.
-- **Business:** only standard terms passed (b03 average order value, b10 year-over-year growth). Company-specific terms all failed. Expected to be fixed by the semantic layer.
+- **h13 (revenue share by rating):** SQL error. A cross-joined total was used outside `GROUP BY`.
+- **Business:** only standard terms passed (b03 average order value, b10 year-over-year growth). Company-specific terms all failed.
 - **Refusals:** 0/8, since no refusal feature exists yet. The model sometimes declined by returning empty SQL, which is not a proper refusal.
 - The business-language baseline was measured in a separate run (`baseline_business`): 2/10, 757 ms, 768 + 135 tokens.
 
 ### gates
 - **No accuracy change:** every question gave the same result as the baseline, so the six validation gates and the cost check cost zero accuracy.
 - **h13** now fails at the `EXPLAIN` step: Postgres caught the error while planning, before running the query.
-- **Destructive requests** (r02–r04) are now blocked before reaching the database, but they still count as failed refusals until Phase 6 adds explicit refusal.
-- **Test suite:** 91 tests pass, including an 18-case attack suite and a check that all 60 reference queries pass validation and stay under the cost limit.
+- **Destructive requests** (r02–r04) are now blocked before reaching the database, but still count as failed refusals until Phase 6 adds explicit refusal.
+- **Test suite:** 91 tests at this point, including an 18-case attack suite and a check that all 60 reference queries pass validation and stay under the cost limit.
 - The run's results file wasn't saved (the script stopped after the last question). Accuracy is taken from the console output; the harness now always saves completed questions.
+
+### retry
+- **h13 fixed:** the first attempt failed with the `GROUP BY` error; the model read the error and rewrote the query with a window function (`SUM(SUM(amount)) OVER ()`). Correct on the second attempt.
+- **h06 still wrong:** the query runs without error, so there's nothing for the retry loop to react to. Retries fix detectable errors, not wrong logic.
+- **Cost of retries:** average prompt tokens rose from 774 to 814, and a retried question costs roughly double (h13: 2,084 tokens, 1.7 s).
+- Every request is now recorded in `app.request_log`.
+
+### retrieval (accuracy run pending)
+- **Security addition:** `staff.password` and `staff.username` are no longer readable by the `reader` role (column-level grants), and so no longer appear in `schema.json` or any prompt.
+- **Bug found and fixed:** `payment` is a partitioned table whose foreign keys were defined on the monthly partitions, and the schema dump only read the parent. Every earlier run therefore showed `payment` without join information; the model had been guessing those joins from column names. Fixed by reading constraints from partitions too (`pg_inherits`), with a regression test.
 
 ## Planned runs
 | Run | Phase | Expected effect |
 |---|---|---|
-| retry | 3 | Fixes query errors the database detects (h13); can't fix logically wrong queries (h06) |
-| retrieval | 4 | Fewer prompt tokens; accuracy should hold |
+| retrieval | 4 | Accuracy should hold with a smaller schema in the prompt |
 | semantic | 5 | Large gain on business questions |
 | refusal | 6 | Refusal rate up, with no false refusals on answerable questions |
-
-
-| retry | 2026-11-06 | 49/50 (98%) | 2/10 (20%) | 0/8 (0%) | 711 ms | 814 + 121 | Self-correcting retry loop (up to 3 attempts) |

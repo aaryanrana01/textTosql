@@ -1,4 +1,7 @@
+import asyncio
+from . import db, pipeline, retrieval
 import time
+
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -13,9 +16,10 @@ from .config import settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await db.pool.open()
-    await db.log_pool.open()
+    await db.app_pool.open()
+    await asyncio.to_thread(retrieval.get_model)
     yield
-    await db.log_pool.close()
+    await db.app_pool.close()
     await db.pool.close()
 
 
@@ -36,6 +40,7 @@ class GenerateResponse(BaseModel):
     question: str
     sql: str
     tables_used: list[str]
+    schema_tables: list[str] = []
     confidence: float
     columns: list[str] = []
     rows: list[list[Any]] = []
@@ -107,6 +112,7 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks):
         question=req.question,
         sql=res.sql,
         tables_used=res.tables_used,
+        schema_tables=res.schema_tables,
         confidence=res.confidence,
         columns=res.columns,
         rows=res.rows,

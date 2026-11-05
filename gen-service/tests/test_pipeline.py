@@ -3,6 +3,18 @@ import asyncio
 from app import pipeline
 from app.llm import GeneratedSQL
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def fake_schema(monkeypatch):
+    async def schema_for(question):
+        return "film: The film catalog.\n  film_id integer PK", ["film"]
+
+    monkeypatch.setattr(pipeline, "schema_for", schema_for)
+
+
+
 GOOD = "SELECT count(*) FROM film"
 BAD = "SELECT nope FROM film"
 

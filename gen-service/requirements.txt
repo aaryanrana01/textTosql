@@ -4,3 +4,5 @@ psycopg[binary,pool]
 pydantic-settings
 openai
 sqlglot
+fastembed
+pyyaml

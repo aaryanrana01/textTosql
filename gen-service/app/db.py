@@ -53,7 +53,7 @@ async def explain_cost(sql: str) -> float:
 logger = logging.getLogger(__name__)
 
 # A separate, small pool for the app_user role, which can write logs but never runs generated SQL.
-log_pool = AsyncConnectionPool(
+app_pool = AsyncConnectionPool(
     conninfo=(
         f"host={settings.db_host} port={settings.db_port} dbname={settings.postgres_db} "
         f"user=app_user password={settings.app_user_password}"
@@ -78,7 +78,7 @@ async def log_request(entry: dict) -> None:
     params = {f: entry.get(f) for f in LOG_FIELDS}
     params["attempt_errors"] = Jsonb(params["attempt_errors"] or [])
     try:
-        async with log_pool.connection() as conn:
+        async with app_pool.connection() as conn:
             await conn.execute(LOG_SQL, params)
     except Exception as exc:
         logger.warning("could not write request log: %s", exc)

@@ -4,6 +4,7 @@ from typing import Any
 from psycopg_pool import AsyncConnectionPool
 
 from .config import settings
+import json
 
 MAX_ROWS = 200
 
@@ -31,3 +32,15 @@ async def run_query(sql: str) -> tuple[list[str], list[list[Any]], bool]:
     truncated = len(raw_rows) > MAX_ROWS
     rows = [[_clean(v) for v in row] for row in raw_rows[:MAX_ROWS]]
     return columns, rows, truncated
+
+
+async def explain_cost(sql: str) -> float:
+    """Postgres's estimated cost for a query, without running it."""
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(f"EXPLAIN (FORMAT JSON) {sql}")
+            row = await cur.fetchone()
+    plan = row[0] if not isinstance(row[0], str) else json.loads(row[0])
+    return float(plan[0]["Plan"]["Total Cost"])
+
+    

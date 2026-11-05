@@ -20,5 +20,9 @@ class Settings(BaseSettings):
     llm_model: str
     llm_reasoning_effort: str | None = None
 
+    # Safety gates
+    max_limit: int = 1000              # LIMIT added to queries that have none
+    max_query_cost: float = 1_000_000  # EXPLAIN cost above which a query is rejected
+
 
 settings = Settings()

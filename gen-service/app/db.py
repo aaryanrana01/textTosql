@@ -82,3 +82,13 @@ async def log_request(entry: dict) -> None:
             await conn.execute(LOG_SQL, params)
     except Exception as exc:
         logger.warning("could not write request log: %s", exc)
+
+
+async def tokens_used_today() -> int:
+    """LLM tokens used since midnight (database time, UTC), from the request log."""
+    async with app_pool.connection() as conn:
+        cur = await conn.execute(
+            "SELECT coalesce(sum(coalesce(prompt_tokens, 0) + coalesce(completion_tokens, 0)), 0) "
+            "FROM app.request_log WHERE created_at >= date_trunc('day', now())"
+        )
+        return int((await cur.fetchone())[0])

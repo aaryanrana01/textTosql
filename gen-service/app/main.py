@@ -1,10 +1,11 @@
 import asyncio
+import hmac
 import time
 from contextlib import asynccontextmanager
 from typing import Any
 
 import openai
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from . import db, pipeline, retrieval
@@ -69,15 +70,31 @@ async def _log_llm_failure(question: str, start: float, error: str) -> None:
     })
 
 
+async def verify_internal_token(x_internal_token: str | None = Header(default=None)):
+    """When a token is configured, only callers that send it (the Express API) may use /generate."""
+    if settings.internal_api_token and not hmac.compare_digest(
+        x_internal_token or "", settings.internal_api_token
+    ):
+        raise HTTPException(status_code=401, detail="invalid internal token")
+
+
 @app.get("/health")
 async def health():
     _, rows, _ = await db.run_query("SELECT 1")
     return {"status": "ok", "database": rows[0][0] == 1}
 
 
-@app.post("/generate", response_model=GenerateResponse)
+@app.post("/generate", response_model=GenerateResponse, dependencies=[Depends(verify_internal_token)])
 async def generate(req: GenerateRequest, background_tasks: BackgroundTasks):
     start = time.perf_counter()
+    if settings.daily_token_budget:
+        used = await db.tokens_used_today()
+        if used >= settings.daily_token_budget:
+            raise HTTPException(
+                status_code=429,
+                detail="The daily demo limit has been reached. Please try again tomorrow.",
+            )
+
     try:
         res = await pipeline.answer(req.question)
     except openai.RateLimitError as exc:

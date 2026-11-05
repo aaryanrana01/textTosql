@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # Schema retrieval
     schema_retrieval: bool = True   # False = send every table (for comparison runs)
     retrieval_top_k: int = 4        # tables retrieved before join-path expansion
+    few_shot_k: int = 3             # similar worked examples per prompt; 0 turns them off
 
 
 settings = Settings()

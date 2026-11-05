@@ -1,9 +1,9 @@
+import json
+
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 from .config import settings
-
-import json
 
 client = AsyncOpenAI(
     api_key=settings.llm_api_key,
@@ -11,20 +11,6 @@ client = AsyncOpenAI(
     timeout=60,
     max_retries=0,
 )
-
-RULES = """You are an expert PostgreSQL analyst.
-Write ONE read-only PostgreSQL SELECT query that answers the user's question.
-
-Rules:
-- Use only the tables and columns listed in the schema below.
-- Use the simplest query that answers the question. Do not join tables that are not needed.
-- Join tables using the foreign keys shown with ->.
-- Use only the allowed values shown in parentheses for enum columns.
-- Respond with JSON only, in exactly this shape:
-  {"sql": "<the query>", "tables_used": ["<table>", ...], "confidence": <number from 0 to 1>}
-
-Schema:
-"""
 
 
 class GeneratedSQL(BaseModel):
@@ -43,13 +29,12 @@ def _strip_fences(text: str) -> str:
 
 async def generate_sql(
     question: str,
-    schema_text: str,
+    system_prompt: str,
     feedback: list[tuple[str, str]] | None = None,
 ) -> tuple[GeneratedSQL, dict]:
-    """Generate SQL. `feedback` holds (previous_sql, error) pairs from failed attempts,
-    so the model can see what went wrong and correct it."""
+    """Generate SQL. `feedback` holds (previous_sql, error) pairs from failed attempts."""
     messages = [
-        {"role": "system", "content": RULES + schema_text},
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": question},
     ]
     for previous_sql, error in feedback or []:

@@ -65,3 +65,9 @@ def test_reader_cannot_read_staff_credentials():
     with reader_conn() as conn:
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             conn.execute("SELECT password FROM staff")
+
+def test_examples_run_on_the_database():
+    examples = [json.loads(l) for l in (ROOT / "db" / "examples.jsonl").read_text().splitlines() if l.strip()]
+    with reader_conn() as conn:
+        for ex in examples:
+            conn.execute(validate_sql(ex["sql"])).fetchall()

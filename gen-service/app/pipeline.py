@@ -1,4 +1,4 @@
-"""The core pipeline: question -> relevant schema -> SQL -> safety gates -> results, with a self-correcting retry loop."""
+"""The core pipeline: question -> prompt context -> SQL -> safety gates -> results, with a self-correcting retry loop."""
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -7,7 +7,8 @@ import psycopg
 from . import db
 from .config import settings
 from .llm import generate_sql
-from .retrieval import schema_for
+from .prompt import build_system_prompt
+from .retrieval import build_context
 from .validate import ValidationError, validate_sql
 
 MAX_ATTEMPTS = 3  # the first try plus up to 2 corrections
@@ -34,6 +35,8 @@ class PipelineResult:
     sql: str = ""
     tables_used: list[str] = field(default_factory=list)
     schema_tables: list[str] = field(default_factory=list)
+    terms_used: list[str] = field(default_factory=list)
+    examples_used: list[str] = field(default_factory=list)
     confidence: float = 0.0
     columns: list[str] = field(default_factory=list)
     rows: list[list[Any]] = field(default_factory=list)
@@ -69,11 +72,15 @@ async def _gate_and_execute(raw_sql: str):
 
 async def answer(question: str) -> PipelineResult:
     res = PipelineResult(question=question)
-    schema_text, res.schema_tables = await schema_for(question)
+    context = await build_context(question)
+    res.schema_tables = context.tables
+    res.terms_used = [t["name"] for t in context.terms]
+    res.examples_used = [e["question"] for e in context.examples]
+    system_prompt = build_system_prompt(context)
     feedback: list[tuple[str, str]] = []
 
     for _ in range(MAX_ATTEMPTS):
-        generated, usage = await generate_sql(question, schema_text, feedback)
+        generated, usage = await generate_sql(question, system_prompt, feedback)
         res.usage["prompt_tokens"] += usage.get("prompt_tokens", 0)
         res.usage["completion_tokens"] += usage.get("completion_tokens", 0)
         res.sql, res.tables_used, res.confidence = generated.sql, generated.tables_used, generated.confidence

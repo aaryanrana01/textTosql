@@ -1,29 +1,29 @@
 import asyncio
 
-from app import pipeline
-from app.llm import GeneratedSQL
-
 import pytest
 
-
-@pytest.fixture(autouse=True)
-def fake_schema(monkeypatch):
-    async def schema_for(question):
-        return "film: The film catalog.\n  film_id integer PK", ["film"]
-
-    monkeypatch.setattr(pipeline, "schema_for", schema_for)
-
-
+from app import pipeline
+from app.llm import GeneratedSQL
+from app.prompt import PromptContext
 
 GOOD = "SELECT count(*) FROM film"
 BAD = "SELECT nope FROM film"
+
+
+@pytest.fixture(autouse=True)
+def fake_context(monkeypatch):
+    """Replace retrieval so these tests need no database, embedding model or LLM."""
+    async def build_context(question):
+        return PromptContext(schema_text="film: The film catalog.\n  film_id integer PK", tables=["film"])
+
+    monkeypatch.setattr(pipeline, "build_context", build_context)
 
 
 def fake_llm(sql_sequence):
     """Returns the given SQL strings in order, and records the feedback each call received."""
     calls = []
 
-    async def generate(question, schema_text, feedback=None):
+    async def generate(question, system_prompt, feedback=None):
         calls.append(list(feedback or []))
         sql = sql_sequence[min(len(calls) - 1, len(sql_sequence) - 1)]
         return GeneratedSQL(sql=sql, tables_used=["film"], confidence=0.9), {"prompt_tokens": 10, "completion_tokens": 5}

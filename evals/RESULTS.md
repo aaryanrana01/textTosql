@@ -43,8 +43,9 @@ Measured with `evals/retrieval_recall.py` (no LLM tokens): for each answerable q
 | Fixed missing foreign keys on partitioned `payment` table | 55/60 (92%) | 4.8 |
 | Clearer, general table descriptions | 57/60 (95%) | 4.9 |
 | Junction tables bring both connected tables | 59/60 (98%) | 5.2 |
+| Business-term tables from the semantic layer (Phase 5) | 60/60 (100%) | 5.2 |
 
-- **Remaining miss:** b07 ("best performer"), a business term the schema can't define. Assigned to the semantic layer (Phase 5).
+- **Remaining miss:** none. b07 is now covered by the ‘best performer’ definition.
 - **Prompt size:** the full schema with descriptions is ~1,133 tokens; a typical retrieved schema is ~628 (about 45% less). Example: the top-5-categories-by-revenue question received 6 tables (`category`, `film`, `film_category`, `inventory`, `payment`, `rental`) and 798 prompt tokens in total, including rules.
 - **k=4 was chosen** because higher values add tables without finding any more of the needed ones.
 

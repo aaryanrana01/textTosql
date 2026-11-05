@@ -1,4 +1,5 @@
-"""Schema retrieval: find the tables relevant to a question with pgvector, then add the tables needed to join them."""
+"""Prompt context: relevant tables (pgvector + join paths), similar worked examples (pgvector)
+and business definitions (semantic layer)."""
 import asyncio
 import logging
 
@@ -6,7 +7,9 @@ from fastembed import TextEmbedding
 
 from . import db
 from .config import settings
+from .prompt import PromptContext
 from .schema_text import CATALOG
+from .semantic import match_terms
 
 logger = logging.getLogger(__name__)
 
@@ -31,24 +34,31 @@ def embed_query(text: str) -> str:
     return to_vector_literal(next(iter(get_model().query_embed([text]))))
 
 
-async def retrieve_tables(question: str) -> list[str]:
-    # Embedding is CPU work; a thread keeps it from blocking other requests.
-    vector = await asyncio.to_thread(embed_query, question)
-    async with db.app_pool.connection() as conn:
-        cur = await conn.execute(
-            "SELECT table_name FROM app.schema_index ORDER BY embedding <=> %s::vector LIMIT %s",
-            (vector, settings.retrieval_top_k),
-        )
-        return [row[0] for row in await cur.fetchall()]
-
-
-async def schema_for(question: str) -> tuple[str, list[str]]:
-    """The schema text for this question's prompt, and the tables it contains."""
+async def build_context(question: str) -> PromptContext:
+    terms = match_terms(question)
     tables = set(CATALOG.table_names)
-    if settings.schema_retrieval:
-        retrieved = await retrieve_tables(question)
-        if retrieved:
-            tables = CATALOG.connect(retrieved)
-        else:
-            logger.warning("schema index is empty; falling back to the full schema")
-    return CATALOG.render(tables), sorted(tables)
+    examples: list[dict] = []
+
+    if settings.schema_retrieval or settings.few_shot_k:
+        # Embedding is CPU work; a thread keeps it from blocking other requests.
+        vector = await asyncio.to_thread(embed_query, question)
+        async with db.app_pool.connection() as conn:
+            if settings.schema_retrieval:
+                cur = await conn.execute(
+                    "SELECT table_name FROM app.schema_index ORDER BY embedding <=> %s::vector LIMIT %s",
+                    (vector, settings.retrieval_top_k),
+                )
+                retrieved = [row[0] for row in await cur.fetchall()]
+                if retrieved:
+                    term_tables = [t for term in terms for t in term.get("tables", [])]
+                    tables = CATALOG.connect(retrieved + term_tables)
+                else:
+                    logger.warning("schema index is empty; falling back to the full schema")
+            if settings.few_shot_k:
+                cur = await conn.execute(
+                    "SELECT question, sql FROM app.example_index ORDER BY embedding <=> %s::vector LIMIT %s",
+                    (vector, settings.few_shot_k),
+                )
+                examples = [{"question": q, "sql": s} for q, s in await cur.fetchall()]
+
+    return PromptContext(schema_text=CATALOG.render(tables), tables=sorted(tables), terms=terms, examples=examples)

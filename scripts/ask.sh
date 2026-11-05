@@ -15,6 +15,7 @@ print("SQL:", r["sql"])
 print("Columns:", r["columns"])
 for row in r["rows"][:10]:
     print("  ", row)
+print("Schema:", r.get("schema_tables"), "| terms:", r.get("terms_used"), "| examples:", len(r.get("examples_used", [])))
 print("Rows:", r["row_count"], "| attempts:", r.get("attempts"), "| truncated:", r["truncated"],
       "| cost:", r.get("query_cost"), "| ms:", r["latency_ms"], "| tokens:", r["usage"])
 if r.get("error"):

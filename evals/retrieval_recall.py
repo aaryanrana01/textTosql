@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "gen-service"))
 from app.config import settings  # noqa: E402
 from app.retrieval import embed_query  # noqa: E402
 from app.schema_text import CATALOG  # noqa: E402
+from app.semantic import match_terms  # noqa: E402
 
 
 def gold_tables(sql: str) -> set[str]:
@@ -37,7 +38,8 @@ def main():
                     "SELECT table_name FROM app.schema_index ORDER BY embedding <=> %s::vector LIMIT %s",
                     (vectors[item["id"]], k),
                 ).fetchall()
-                selected = CATALOG.connect([r[0] for r in rows])
+                term_tables = [t for term in match_terms(item["question"]) for t in term.get("tables", [])]
+                selected = CATALOG.connect([r[0] for r in rows] + term_tables)
                 needed = gold_tables(item["gold_sql"])
                 sizes.append(len(selected))
                 if needed <= selected:

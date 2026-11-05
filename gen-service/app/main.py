@@ -41,6 +41,8 @@ class GenerateResponse(BaseModel):
     sql: str
     tables_used: list[str]
     schema_tables: list[str] = []
+    terms_used: list[str] = []
+    examples_used: list[str] = []
     confidence: float
     columns: list[str] = []
     rows: list[list[Any]] = []
@@ -113,6 +115,8 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks):
         sql=res.sql,
         tables_used=res.tables_used,
         schema_tables=res.schema_tables,
+        terms_used=res.terms_used,
+        examples_used=res.examples_used,
         confidence=res.confidence,
         columns=res.columns,
         rows=res.rows,

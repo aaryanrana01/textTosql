@@ -1,0 +1,86 @@
+# Company business definitions. When a question uses a term (or a synonym), its definition and
+# SQL hint are added to the prompt, and its tables are added to schema retrieval.
+terms:
+  - name: revenue
+    synonyms: [sales, income, earnings]
+    definition: Total of payment.amount, attributed to a period by payment_date.
+    sql: SUM(payment.amount)
+    tables: [payment]
+
+  - name: average order value
+    synonyms: [aov, average transaction value, average sale]
+    definition: The average amount of a single payment.
+    sql: AVG(payment.amount)
+    tables: [payment]
+
+  - name: VIP customer
+    synonyms: [vip, top-tier customer]
+    definition: A customer whose lifetime total payments are greater than 250.
+    sql: customer_id IN (SELECT customer_id FROM payment GROUP BY customer_id HAVING SUM(amount) > 250)
+    tables: [payment, customer]
+
+  - name: active customer
+    synonyms: [active account]
+    definition: A customer whose account is marked active.
+    sql: customer.activebool = true
+    tables: [customer]
+
+  - name: churned customer
+    synonyms: [churn, lapsed customer, lost customer]
+    definition: A customer whose most recent rental is more than 180 days before the latest rental date in the data.
+    sql: MAX(rental.rental_date) per customer < (SELECT MAX(rental_date) FROM rental) - INTERVAL '180 days'
+    tables: [rental, customer]
+
+  - name: late return rate
+    synonyms: [late return, overdue rate]
+    definition: Percentage of returned rentals (return_date IS NOT NULL) where return_date - rental_date is longer than the film's rental_duration in days.
+    sql: 100.0 * COUNT(*) FILTER (WHERE r.return_date - r.rental_date > f.rental_duration * INTERVAL '1 day') / COUNT(*), over returned rentals joined rental -> inventory -> film
+    tables: [rental, inventory, film]
+
+  - name: catalog utilization
+    synonyms: [catalogue utilization, catalog utilisation, catalogue utilisation]
+    definition: Percentage of all films in the catalog that were rented at least once in the period.
+    sql: 100.0 * COUNT(DISTINCT inventory.film_id) over rentals in the period / (SELECT COUNT(*) FROM film)
+    tables: [rental, inventory, film]
+
+  - name: retention rate
+    synonyms: [customer retention, retained customers]
+    definition: Of the customers who rented in the earlier period, the percentage who also rented in the later period.
+    sql: 100.0 * COUNT(customers who rented in both periods) / COUNT(customers who rented in the earlier period)
+    tables: [rental]
+
+  - name: best performer
+    synonyms: [best performing, top performer, best seller, top seller]
+    definition: The item (film, category, actor or store) with the highest total payment revenue.
+    sql: ORDER BY SUM(payment.amount) DESC LIMIT 1, joining payment -> rental -> inventory -> film
+    tables: [payment, rental, inventory]
+
+  - name: active title
+    synonyms: [active film]
+    definition: A film with at least one payment in the period.
+    sql: COUNT(DISTINCT inventory.film_id) over payments in the period, joined payment -> rental -> inventory
+    tables: [payment, rental, inventory]
+
+  - name: revenue per active title
+    synonyms: []
+    definition: Revenue in the period divided by the number of active titles in the same period.
+    sql: SUM(payment.amount) / COUNT(DISTINCT inventory.film_id), for payments in the period
+    tables: [payment, rental, inventory]
+
+  - name: dormant title
+    synonyms: [dormant film, inactive title]
+    definition: A film that has inventory but was not rented during the most recent full calendar year (2025).
+    sql: films in inventory with NOT EXISTS a rental of any of their copies with rental_date >= '2025-01-01' AND < '2026-01-01'
+    tables: [inventory, rental]
+
+  - name: year-over-year growth
+    synonyms: [year-over-year, yoy, year over year, annual growth]
+    definition: (value this year - value previous year) / value previous year * 100, by calendar year.
+    sql: 100.0 * (this_year - last_year) / last_year
+    tables: []
+
+  - name: rental volume
+    synonyms: [number of rentals]
+    definition: Count of rentals, attributed to a period by rental_date.
+    sql: COUNT(*) FROM rental
+    tables: [rental]

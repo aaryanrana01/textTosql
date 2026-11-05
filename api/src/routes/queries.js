@@ -48,12 +48,14 @@ queryRouter.post('/query', questionLimiter, async (req, res) => {
 
   const { rows } = await pool.query(
     `INSERT INTO app.queries
-       (user_id, question, sql, status, refusal_reason, error, result_columns, result_rows, row_count, truncated, latency_ms)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11)
+       (user_id, question, sql, status, refusal_category, refusal_reason, error,
+        result_columns, result_rows, row_count, truncated, latency_ms, attempts, terms_used, usage)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11, $12, $13, $14::jsonb, $15::jsonb)
      RETURNING id, created_at`,
     [
-      req.user.id, question, result.sql || null, status, result.refusal_reason, result.error,
+      req.user.id, question, result.sql || null, status, result.refusal_category, result.refusal_reason, result.error,
       JSON.stringify(result.columns), JSON.stringify(result.rows), result.row_count, result.truncated, result.latency_ms,
+      result.attempts, JSON.stringify(result.terms_used), JSON.stringify(result.usage),
     ],
   );
 
@@ -73,8 +75,9 @@ queryRouter.get('/history', async (req, res) => {
 queryRouter.get('/history/:id', async (req, res) => {
   const { id } = IdParam.parse(req.params);
   const { rows } = await pool.query(
-    `SELECT id, question, sql, status, refusal_reason, error, result_columns AS columns, result_rows AS rows,
-            row_count, truncated, latency_ms, feedback, created_at
+    `SELECT id, question, sql, status, refusal_category, refusal_reason, error,
+            result_columns AS columns, result_rows AS rows, row_count, truncated,
+            latency_ms, attempts, terms_used, usage, feedback, created_at
      FROM app.queries WHERE id = $1 AND user_id = $2`,
     [id, req.user.id],
   );

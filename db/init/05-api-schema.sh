@@ -13,20 +13,24 @@ CREATE TABLE app.users (
 );
 
 CREATE TABLE app.queries (
-    id             bigserial PRIMARY KEY,
-    user_id        bigint NOT NULL REFERENCES app.users(id) ON DELETE CASCADE,
-    question       text NOT NULL,
-    sql            text,
-    status         text NOT NULL CHECK (status IN ('ok', 'error', 'refused')),
-    refusal_reason text,
-    error          text,
-    result_columns jsonb NOT NULL DEFAULT '[]',
-    result_rows    jsonb NOT NULL DEFAULT '[]',
-    row_count      int NOT NULL DEFAULT 0,
-    truncated      boolean NOT NULL DEFAULT false,
-    latency_ms     int,
-    feedback       smallint CHECK (feedback IN (-1, 1)),
-    created_at     timestamptz NOT NULL DEFAULT now()
+    id               bigserial PRIMARY KEY,
+    user_id          bigint NOT NULL REFERENCES app.users(id) ON DELETE CASCADE,
+    question         text NOT NULL,
+    sql              text,
+    status           text NOT NULL CHECK (status IN ('ok', 'error', 'refused')),
+    refusal_category text,
+    refusal_reason   text,
+    error            text,
+    result_columns   jsonb NOT NULL DEFAULT '[]',
+    result_rows      jsonb NOT NULL DEFAULT '[]',
+    row_count        int NOT NULL DEFAULT 0,
+    truncated        boolean NOT NULL DEFAULT false,
+    latency_ms       int,
+    attempts         int NOT NULL DEFAULT 1,
+    terms_used       jsonb NOT NULL DEFAULT '[]',
+    usage            jsonb NOT NULL DEFAULT '{}',
+    feedback         smallint CHECK (feedback IN (-1, 1)),
+    created_at       timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX queries_user_created_idx ON app.queries (user_id, created_at DESC);
 

@@ -13,5 +13,5 @@ WRITE_INTENT = re.compile(
 def check_intent(question: str) -> tuple[str, str] | None:
     """Returns (category, reason) if the request must be refused, otherwise None."""
     if WRITE_INTENT.search(question):
-        return "modifies_data", "This assistant only reads data. It never changes, deletes or adds records."
+        return "modifies_data", "You can ask any question about the data, but it will never change, delete or add records."
     return None

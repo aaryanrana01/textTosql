@@ -1,4 +1,5 @@
-"""The core pipeline: question -> prompt context -> SQL -> safety gates -> results, with a self-correcting retry loop."""
+"""The core pipeline: intent check -> prompt context -> SQL or refusal -> safety gates -> results,
+with a self-correcting retry loop."""
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -6,6 +7,7 @@ import psycopg
 
 from . import db
 from .config import settings
+from .guard import check_intent
 from .llm import generate_sql
 from .prompt import build_system_prompt
 from .retrieval import build_context
@@ -38,6 +40,9 @@ class PipelineResult:
     terms_used: list[str] = field(default_factory=list)
     examples_used: list[str] = field(default_factory=list)
     confidence: float = 0.0
+    refused: bool = False
+    refusal_category: str | None = None
+    refusal_reason: str | None = None
     columns: list[str] = field(default_factory=list)
     rows: list[list[Any]] = field(default_factory=list)
     truncated: bool = False
@@ -72,6 +77,15 @@ async def _gate_and_execute(raw_sql: str):
 
 async def answer(question: str) -> PipelineResult:
     res = PipelineResult(question=question)
+
+    # 1. Deterministic check: requests to change data are refused before any LLM call.
+    blocked = check_intent(question)
+    if blocked:
+        res.refused = True
+        res.refusal_category, res.refusal_reason = blocked
+        return res
+
+    # 2. Build the prompt context: relevant tables, business definitions, similar examples.
     context = await build_context(question)
     res.schema_tables = context.tables
     res.terms_used = [t["name"] for t in context.terms]
@@ -83,14 +97,19 @@ async def answer(question: str) -> PipelineResult:
         generated, usage = await generate_sql(question, system_prompt, feedback)
         res.usage["prompt_tokens"] += usage.get("prompt_tokens", 0)
         res.usage["completion_tokens"] += usage.get("completion_tokens", 0)
-        res.sql, res.tables_used, res.confidence = generated.sql, generated.tables_used, generated.confidence
+        res.tables_used, res.confidence = generated.tables_used, generated.confidence
 
-        # An empty query means the model declined. Retrying would only pressure it into answering.
-        if not generated.sql.strip():
-            res.error, res.error_stage = "the model returned no SQL", "validation"
-            res.attempts.append(Attempt(sql="", error=res.error, stage=res.error_stage))
+        # 3. The model judged the question unanswerable, or produced no usable query: refuse, never guess.
+        if not generated.answerable or not generated.sql.strip():
+            res.refused = True
+            res.refusal_category = generated.refusal_category or "unclear"
+            res.refusal_reason = generated.refusal_reason or "This question can't be answered from this database."
+            res.sql, res.error, res.error_stage = "", None, None
+            res.attempts.append(Attempt(sql="", error=res.refusal_reason, stage="refusal"))
             break
 
+        # 4. Safety gates and execution, with self-correction on failure.
+        res.sql = generated.sql
         try:
             res.sql, res.query_cost, res.columns, res.rows, res.truncated = await _gate_and_execute(generated.sql)
             res.error = res.error_stage = None

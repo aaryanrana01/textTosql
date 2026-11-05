@@ -8,6 +8,7 @@ from app.prompt import PromptContext
 
 GOOD = "SELECT count(*) FROM film"
 BAD = "SELECT nope FROM film"
+USAGE = {"prompt_tokens": 10, "completion_tokens": 5}
 
 
 @pytest.fixture(autouse=True)
@@ -19,14 +20,16 @@ def fake_context(monkeypatch):
     monkeypatch.setattr(pipeline, "build_context", build_context)
 
 
-def fake_llm(sql_sequence):
-    """Returns the given SQL strings in order, and records the feedback each call received."""
+def fake_llm(outputs):
+    """Returns the given outputs in order (SQL strings or GeneratedSQL objects), recording each call's feedback."""
     calls = []
 
     async def generate(question, system_prompt, feedback=None):
         calls.append(list(feedback or []))
-        sql = sql_sequence[min(len(calls) - 1, len(sql_sequence) - 1)]
-        return GeneratedSQL(sql=sql, tables_used=["film"], confidence=0.9), {"prompt_tokens": 10, "completion_tokens": 5}
+        out = outputs[min(len(calls) - 1, len(outputs) - 1)]
+        if isinstance(out, str):
+            out = GeneratedSQL(sql=out, tables_used=["film"], confidence=0.9)
+        return out, dict(USAGE)
 
     return generate, calls
 
@@ -37,36 +40,46 @@ async def fake_gate(sql):
     return sql, 1.0, ["count"], [[1000]], False
 
 
-def test_retry_fixes_a_failed_query(monkeypatch):
-    generate, calls = fake_llm([BAD, GOOD])
+def run(monkeypatch, outputs, question="How many films?"):
+    generate, calls = fake_llm(outputs)
     monkeypatch.setattr(pipeline, "generate_sql", generate)
     monkeypatch.setattr(pipeline, "_gate_and_execute", fake_gate)
+    return asyncio.run(pipeline.answer(question)), calls
 
-    res = asyncio.run(pipeline.answer("How many films?"))
 
-    assert res.error is None and res.rows == [[1000]]
+def test_retry_fixes_a_failed_query(monkeypatch):
+    res, calls = run(monkeypatch, [BAD, GOOD])
+    assert res.error is None and res.rows == [[1000]] and not res.refused
     assert len(res.attempts) == 2
     assert 'column "nope" does not exist' in calls[1][0][1]  # the 2nd call saw the 1st error
     assert res.usage == {"prompt_tokens": 20, "completion_tokens": 10}  # both calls counted
 
 
 def test_gives_up_after_max_attempts(monkeypatch):
-    generate, calls = fake_llm([BAD])
-    monkeypatch.setattr(pipeline, "generate_sql", generate)
-    monkeypatch.setattr(pipeline, "_gate_and_execute", fake_gate)
-
-    res = asyncio.run(pipeline.answer("How many films?"))
-
-    assert res.error_stage == "execution"
+    res, calls = run(monkeypatch, [BAD])
+    assert res.error_stage == "execution" and not res.refused
     assert len(res.attempts) == len(calls) == pipeline.MAX_ATTEMPTS
 
 
-def test_does_not_retry_when_model_declines(monkeypatch):
-    generate, calls = fake_llm([""])
-    monkeypatch.setattr(pipeline, "generate_sql", generate)
-    monkeypatch.setattr(pipeline, "_gate_and_execute", fake_gate)
+def test_model_refusal_is_returned_and_not_retried(monkeypatch):
+    refusal = GeneratedSQL(
+        answerable=False, refusal_category="not_in_data",
+        refusal_reason="The database has no weather data.", confidence=0.95,
+    )
+    res, calls = run(monkeypatch, [refusal], "What's the weather in Delhi?")
+    assert res.refused and res.refusal_category == "not_in_data"
+    assert res.refusal_reason == "The database has no weather data."
+    assert len(calls) == 1 and res.rows == [] and res.sql == ""
 
-    res = asyncio.run(pipeline.answer("Drop the customer table."))
 
-    assert res.error == "the model returned no SQL"
+def test_empty_sql_counts_as_unclear_refusal(monkeypatch):
+    res, calls = run(monkeypatch, [""])
+    assert res.refused and res.refusal_category == "unclear"
     assert len(calls) == 1
+
+
+def test_write_requests_are_refused_without_calling_the_llm(monkeypatch):
+    res, calls = run(monkeypatch, [GOOD], "Delete all rentals.")
+    assert res.refused and res.refusal_category == "modifies_data"
+    assert calls == []  # the LLM was never called
+    assert res.usage == {"prompt_tokens": 0, "completion_tokens": 0}  # zero tokens spent

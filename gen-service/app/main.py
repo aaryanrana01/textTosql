@@ -1,7 +1,5 @@
 import asyncio
-from . import db, pipeline, retrieval
 import time
-
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -9,7 +7,7 @@ import openai
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from . import db, pipeline
+from . import db, pipeline, retrieval
 from .config import settings
 
 
@@ -17,7 +15,7 @@ from .config import settings
 async def lifespan(app: FastAPI):
     await db.pool.open()
     await db.app_pool.open()
-    await asyncio.to_thread(retrieval.get_model)
+    await asyncio.to_thread(retrieval.get_model)  # load the embedding model before the first request
     yield
     await db.app_pool.close()
     await db.pool.close()
@@ -44,6 +42,9 @@ class GenerateResponse(BaseModel):
     terms_used: list[str] = []
     examples_used: list[str] = []
     confidence: float
+    refused: bool = False
+    refusal_category: str | None = None
+    refusal_reason: str | None = None
     columns: list[str] = []
     rows: list[list[Any]] = []
     row_count: int = 0
@@ -92,13 +93,19 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks):
     latency_ms = _elapsed_ms(start)
     attempt_errors = [{"sql": a.sql, "stage": a.stage, "error": a.error} for a in res.attempts if a.error]
 
+    if res.refused:
+        status, stage, error = "refused", "refusal", f"{res.refusal_category}: {res.refusal_reason}"
+    else:
+        status = "ok" if res.error is None else "error"
+        stage, error = res.error_stage, res.error
+
     # Logged after the response is sent, so logging never adds latency for the user.
     background_tasks.add_task(db.log_request, {
         "question": req.question,
-        "final_sql": res.sql,
-        "status": "ok" if res.error is None else "error",
-        "error_stage": res.error_stage,
-        "error": res.error,
+        "final_sql": res.sql or None,
+        "status": status,
+        "error_stage": stage,
+        "error": error,
         "attempts": len(res.attempts),
         "attempt_errors": attempt_errors,
         "row_count": len(res.rows),
@@ -118,6 +125,9 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks):
         terms_used=res.terms_used,
         examples_used=res.examples_used,
         confidence=res.confidence,
+        refused=res.refused,
+        refusal_category=res.refusal_category,
+        refusal_reason=res.refusal_reason,
         columns=res.columns,
         rows=res.rows,
         row_count=len(res.rows),

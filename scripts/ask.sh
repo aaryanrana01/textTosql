@@ -8,6 +8,9 @@ import json, sys
 r = json.load(sys.stdin)
 if "detail" in r:
     print("FAILED:", r["detail"]); sys.exit()
+if r.get("refused"):
+    print("REFUSED [" + str(r.get("refusal_category")) + "]:", r.get("refusal_reason"))
+    print("ms:", r["latency_ms"], "| tokens:", r["usage"]); sys.exit()
 for i, a in enumerate(r.get("attempt_history", []), 1):
     if a.get("error"):
         print("Attempt", i, "failed [" + str(a.get("stage")) + "]:", a["error"][:150])

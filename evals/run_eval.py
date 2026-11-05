@@ -1,0 +1,171 @@
+"""Run the evaluation set against the generation service and score it."""
+import argparse
+import json
+import sys
+import time
+import urllib.error
+import urllib.request
+from collections import Counter
+from datetime import date, datetime
+from decimal import Decimal
+from pathlib import Path
+
+import psycopg
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "gen-service"))
+from app.config import settings  # noqa: E402
+
+SERVICE_URL = "http://localhost:8000/generate"
+
+
+def connect():
+    return psycopg.connect(
+        host=settings.db_host, port=settings.db_port, dbname=settings.postgres_db,
+        user="reader", password=settings.reader_password, autocommit=True,
+    )
+
+
+def normalize(value):
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float, Decimal)):
+        return round(float(value), 2)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    return str(value).strip()
+
+
+def run_sql(conn, sql):
+    with conn.cursor() as cur:
+        cur.execute(sql)
+        return [[normalize(v) for v in row] for row in cur.fetchall()]
+
+
+def results_match(gold, pred):
+    """Every reference column must appear in the prediction with the same values.
+    Row order, column order, column names and extra columns are ignored."""
+    if len(gold) != len(pred):
+        return False
+    if not gold:
+        return True
+    gold_cols = [Counter(row[i] for row in gold) for i in range(len(gold[0]))]
+    pred_cols = [Counter(row[i] for row in pred) for i in range(len(pred[0]))]
+    used = set()
+    for gold_col in gold_cols:
+        match = next((j for j, p in enumerate(pred_cols) if j not in used and p == gold_col), None)
+        if match is None:
+            return False
+        used.add(match)
+    return True
+
+
+def ask_service(question):
+    body = json.dumps({"question": question}).encode()
+    for attempt in range(2):
+        req = urllib.request.Request(SERVICE_URL, data=body, headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                return json.load(resp), None
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode(errors="replace")[:200]
+            if exc.code == 429 and attempt == 0:
+                print("    rate limited, waiting 60 s and retrying once...")
+                time.sleep(60)
+                continue
+            return None, f"HTTP {exc.code}: {detail}"
+        except Exception as exc:
+            return None, f"request failed: {exc}"
+    return None, "rate limited twice"
+
+
+def score(conn, item, resp, err):
+    rec = {"id": item["id"], "difficulty": item["difficulty"], "expect": item["expect"], "question": item["question"]}
+    if resp:
+        rec.update(
+            sql=resp.get("sql"),
+            refused=bool(resp.get("refused")),
+            latency_ms=resp.get("latency_ms"),
+            usage=resp.get("usage") or {},
+        )
+    if item["expect"] == "refuse":
+        rec["correct"] = bool(resp and resp.get("refused"))
+        if err:
+            rec["error"] = err
+        return rec
+    if err or not resp or resp.get("refused") or not resp.get("sql"):
+        rec["correct"] = False
+        rec["error"] = err or ("wrongly refused" if resp and resp.get("refused") else "no SQL returned")
+        return rec
+    try:
+        gold = run_sql(conn, item["gold_sql"])
+        pred = run_sql(conn, resp["sql"])
+        rec["correct"] = results_match(gold, pred)
+        rec["gold_rows"], rec["pred_rows"] = len(gold), len(pred)
+    except psycopg.Error as exc:
+        rec["correct"] = False
+        rec["error"] = str(exc).strip()[:200]
+    return rec
+
+
+def summarize(results):
+    def pct(part, whole):
+        return round(100 * part / whole, 1) if whole else 0.0
+
+    answerable = [r for r in results if r["expect"] == "answer"]
+    refusals = [r for r in results if r["expect"] == "refuse"]
+    with_usage = [r for r in results if r.get("usage")]
+    summary = {
+        "accuracy": pct(sum(r["correct"] for r in answerable), len(answerable)),
+        "answerable": len(answerable),
+        "by_difficulty": {},
+        "refusal_rate": pct(sum(r["correct"] for r in refusals), len(refusals)),
+        "false_refusals": sum(1 for r in answerable if r.get("refused")),
+        "avg_latency_ms": round(sum(r["latency_ms"] for r in with_usage) / len(with_usage)) if with_usage else None,
+        "avg_prompt_tokens": round(sum(r["usage"].get("prompt_tokens", 0) for r in with_usage) / len(with_usage)) if with_usage else None,
+        "avg_completion_tokens": round(sum(r["usage"].get("completion_tokens", 0) for r in with_usage) / len(with_usage)) if with_usage else None,
+    }
+    for level in ("easy", "medium", "hard"):
+        group = [r for r in answerable if r["difficulty"] == level]
+        summary["by_difficulty"][level] = f"{sum(r['correct'] for r in group)}/{len(group)} ({pct(sum(r['correct'] for r in group), len(group))}%)"
+    return summary
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--label", default="run", help="name for this run, e.g. baseline")
+    parser.add_argument("--limit", type=int, help="only run the first N questions")
+    parser.add_argument("--sleep", type=float, default=8.0, help="seconds between questions")
+    args = parser.parse_args()
+
+    items = [json.loads(line) for line in (ROOT / "evals" / "dataset.jsonl").read_text().splitlines() if line.strip()]
+    if args.limit:
+        items = items[: args.limit]
+
+    results = []
+    with connect() as conn:
+        for n, item in enumerate(items, 1):
+            resp, err = ask_service(item["question"])
+            rec = score(conn, item, resp, err)
+            results.append(rec)
+            mark = "PASS" if rec["correct"] else "FAIL"
+            note = f"  ({rec['error']})" if rec.get("error") else ""
+            print(f"[{n}/{len(items)}] {item['id']} {mark}  {item['question'][:70]}{note}")
+            if n < len(items):
+                time.sleep(args.sleep)
+
+    summary = summarize(results)
+    out_dir = ROOT / "evals" / "results"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / f"{datetime.now():%Y%m%d_%H%M}_{args.label}.json"
+    out_file.write_text(json.dumps({"label": args.label, "summary": summary, "results": results}, indent=2, default=str))
+
+    print("\n=== Summary ===")
+    print(json.dumps(summary, indent=2))
+    print(f"Saved to {out_file}")
+
+
+if __name__ == "__main__":
+    main()

@@ -89,6 +89,7 @@ def score(conn, item, resp, err):
             refused=bool(resp.get("refused")),
             latency_ms=resp.get("latency_ms"),
             usage=resp.get("usage") or {},
+            error_stage=resp.get("error_stage"),
         )
     if item["expect"] == "refuse":
         rec["correct"] = bool(resp and resp.get("refused"))
@@ -98,6 +99,12 @@ def score(conn, item, resp, err):
     if err or not resp or resp.get("refused") or not resp.get("sql"):
         rec["correct"] = False
         rec["error"] = err or ("wrongly refused" if resp and resp.get("refused") else "no SQL returned")
+        return rec
+    # CHANGED (Phase 2): if the service rejected or failed to run the query, it counts as wrong.
+    # Without this, the harness would run the rejected SQL itself and might score it correct.
+    if resp.get("error"):
+        rec["correct"] = False
+        rec["error"] = f"[{resp.get('error_stage')}] {resp['error'][:180]}"
         return rec
     try:
         gold = run_sql(conn, item["gold_sql"])
@@ -121,7 +128,8 @@ def summarize(results):
     summary = {
         "accuracy": pct(sum(r["correct"] for r in answerable), len(answerable)),
         "answerable": len(answerable),
-        "core_accuracy": pct(sum(r["correct"] for r in core), len(core)),
+        # CHANGED (Phase 2): None instead of 0.0 when a run contains no core questions
+        "core_accuracy": pct(sum(r["correct"] for r in core), len(core)) if core else None,
         "by_difficulty": {},
         "refusal_rate": pct(sum(r["correct"] for r in refusals), len(refusals)),
         "false_refusals": sum(1 for r in answerable if r.get("refused")),
@@ -135,7 +143,6 @@ def summarize(results):
             correct = sum(r["correct"] for r in group)
             summary["by_difficulty"][level] = f"{correct}/{len(group)} ({pct(correct, len(group))}%)"
     return summary
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -153,27 +160,31 @@ def main():
         items = items[: args.limit]
 
     results = []
-    with connect() as conn:
-        for n, item in enumerate(items, 1):
-            resp, err = ask_service(item["question"])
-            rec = score(conn, item, resp, err)
-            results.append(rec)
-            mark = "PASS" if rec["correct"] else "FAIL"
-            note = f"  ({rec['error']})" if rec.get("error") else ""
-            print(f"[{n}/{len(items)}] {item['id']} {mark}  {item['question'][:70]}{note}")
-            if n < len(items):
-                time.sleep(args.sleep)
-
-    summary = summarize(results)
-    out_dir = ROOT / "evals" / "results"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_file = out_dir / f"{datetime.now():%Y%m%d_%H%M}_{args.label}.json"
-    out_file.write_text(json.dumps({"label": args.label, "summary": summary, "results": results}, indent=2, default=str))
-
-    print("\n=== Summary ===")
-    print(json.dumps(summary, indent=2))
-    print(f"Saved to {out_file}")
-
+    try:
+        with connect() as conn:
+            for n, item in enumerate(items, 1):
+                resp, err = ask_service(item["question"])
+                rec = score(conn, item, resp, err)
+                results.append(rec)
+                mark = "PASS" if rec["correct"] else "FAIL"
+                note = f"  ({rec['error']})" if rec.get("error") else ""
+                print(f"[{n}/{len(items)}] {item['id']} {mark}  {item['question'][:70]}{note}")
+                if n < len(items):
+                    time.sleep(args.sleep)
+    except KeyboardInterrupt:
+        print("\nInterrupted: saving the questions completed so far.")
+    finally:
+        # Runs even if the loop crashes or is interrupted, so finished work is never lost.
+        if results:
+            label = args.label if len(results) == len(items) else f"{args.label}_partial"
+            summary = summarize(results)
+            out_dir = ROOT / "evals" / "results"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_file = out_dir / f"{datetime.now():%Y%m%d_%H%M}_{label}.json"
+            out_file.write_text(json.dumps({"label": label, "summary": summary, "results": results}, indent=2, default=str))
+            print("\n=== Summary ===")
+            print(json.dumps(summary, indent=2))
+            print(f"Saved to {out_file}")
 
 if __name__ == "__main__":
     main()

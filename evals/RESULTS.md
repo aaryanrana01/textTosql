@@ -55,3 +55,6 @@ Core breakdown for both runs: easy 15/15, medium 20/20, hard 13/15.
 | retrieval | 4 | Fewer prompt tokens; accuracy should hold |
 | semantic | 5 | Large gain on business questions |
 | refusal | 6 | Refusal rate up, with no false refusals on answerable questions |
+
+
+| retry | 2026-11-06 | 49/50 (98%) | 2/10 (20%) | 0/8 (0%) | 711 ms | 814 + 121 | Self-correcting retry loop (up to 3 attempts) |

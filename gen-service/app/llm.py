@@ -3,6 +3,8 @@ from pydantic import BaseModel, Field
 
 from .config import settings
 
+import json
+
 client = AsyncOpenAI(
     api_key=settings.llm_api_key,
     base_url=settings.llm_base_url,
@@ -39,17 +41,35 @@ def _strip_fences(text: str) -> str:
     return text.strip()
 
 
-async def generate_sql(question: str, schema_text: str) -> tuple[GeneratedSQL, dict]:
+async def generate_sql(
+    question: str,
+    schema_text: str,
+    feedback: list[tuple[str, str]] | None = None,
+) -> tuple[GeneratedSQL, dict]:
+    """Generate SQL. `feedback` holds (previous_sql, error) pairs from failed attempts,
+    so the model can see what went wrong and correct it."""
+    messages = [
+        {"role": "system", "content": RULES + schema_text},
+        {"role": "user", "content": question},
+    ]
+    for previous_sql, error in feedback or []:
+        messages.append({"role": "assistant", "content": json.dumps({"sql": previous_sql})})
+        messages.append({
+            "role": "user",
+            "content": (
+                f"That query failed: {error}\n"
+                "Write a corrected query that answers the original question. "
+                "Respond with JSON only, in the same shape as before."
+            ),
+        })
+
     extra = {}
     if settings.llm_reasoning_effort:
         extra["reasoning_effort"] = settings.llm_reasoning_effort
 
     response = await client.chat.completions.create(
         model=settings.llm_model,
-        messages=[
-            {"role": "system", "content": RULES + schema_text},
-            {"role": "user", "content": question},
-        ],
+        messages=messages,
         temperature=0,
         max_completion_tokens=2048,
         response_format={"type": "json_object"},

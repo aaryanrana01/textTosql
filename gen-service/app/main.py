@@ -3,23 +3,19 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import openai
-import psycopg
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from . import db
-from .config import ROOT, settings
-from .llm import generate_sql
-from .schema_text import load_schema_text
-from .validate import ValidationError, validate_sql
-
-SCHEMA_TEXT = load_schema_text(ROOT / "db" / "schema.json")
+from . import db, pipeline
+from .config import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await db.pool.open()
+    await db.log_pool.open()
     yield
+    await db.log_pool.close()
     await db.pool.close()
 
 
@@ -28,6 +24,12 @@ app = FastAPI(title="Text-to-SQL generation service", lifespan=lifespan)
 
 class GenerateRequest(BaseModel):
     question: str = Field(min_length=3, max_length=500)
+
+
+class AttemptOut(BaseModel):
+    sql: str
+    error: str | None = None
+    stage: str | None = None
 
 
 class GenerateResponse(BaseModel):
@@ -40,10 +42,23 @@ class GenerateResponse(BaseModel):
     row_count: int = 0
     truncated: bool = False
     error: str | None = None
-    error_stage: str | None = None  # "validation", "cost" or "execution"
+    error_stage: str | None = None
     query_cost: float | None = None
+    attempts: int = 1
+    attempt_history: list[AttemptOut] = []
     latency_ms: int
     usage: dict
+
+
+def _elapsed_ms(start: float) -> int:
+    return int((time.perf_counter() - start) * 1000)
+
+
+async def _log_llm_failure(question: str, start: float, error: str) -> None:
+    await db.log_request({
+        "question": question, "status": "llm_error", "error_stage": "llm", "error": error,
+        "attempts": 0, "attempt_errors": [], "latency_ms": _elapsed_ms(start), "model": settings.llm_model,
+    })
 
 
 @app.get("/health")
@@ -53,52 +68,55 @@ async def health():
 
 
 @app.post("/generate", response_model=GenerateResponse)
-async def generate(req: GenerateRequest):
+async def generate(req: GenerateRequest, background_tasks: BackgroundTasks):
     start = time.perf_counter()
-
-    # 1. Ask the LLM for SQL
     try:
-        result, usage = await generate_sql(req.question, SCHEMA_TEXT)
+        res = await pipeline.answer(req.question)
     except openai.RateLimitError as exc:
+        await _log_llm_failure(req.question, start, f"rate limit: {exc.message}")
         raise HTTPException(status_code=429, detail=f"LLM rate limit: {exc.message}")
     except openai.APITimeoutError:
+        await _log_llm_failure(req.question, start, "timeout")
         raise HTTPException(status_code=504, detail="LLM timed out")
     except Exception as exc:
+        await _log_llm_failure(req.question, start, str(exc)[:500])
         raise HTTPException(status_code=502, detail=f"LLM error: {exc}")
 
-    # 2. Safety gates: validate the SQL, then check its estimated cost
-    sql, error, stage, cost = result.sql, None, None, None
-    try:
-        sql = validate_sql(result.sql)
-        cost = await db.explain_cost(sql)
-        if cost > settings.max_query_cost:
-            error = f"query too expensive (estimated cost {cost:,.0f} exceeds limit {settings.max_query_cost:,.0f})"
-            stage = "cost"
-    except ValidationError as exc:
-        error, stage = f"rejected by validation: {exc}", "validation"
-    except psycopg.Error as exc:
-        error, stage = str(exc).strip(), "execution"  # e.g. a column that doesn't exist
+    latency_ms = _elapsed_ms(start)
+    attempt_errors = [{"sql": a.sql, "stage": a.stage, "error": a.error} for a in res.attempts if a.error]
 
-    # 3. Run it as the read-only reader role, only if every gate passed
-    columns, rows, truncated = [], [], False
-    if error is None:
-        try:
-            columns, rows, truncated = await db.run_query(sql)
-        except psycopg.Error as exc:
-            error, stage = str(exc).strip(), "execution"
+    # Logged after the response is sent, so logging never adds latency for the user.
+    background_tasks.add_task(db.log_request, {
+        "question": req.question,
+        "final_sql": res.sql,
+        "status": "ok" if res.error is None else "error",
+        "error_stage": res.error_stage,
+        "error": res.error,
+        "attempts": len(res.attempts),
+        "attempt_errors": attempt_errors,
+        "row_count": len(res.rows),
+        "truncated": res.truncated,
+        "query_cost": res.query_cost,
+        "latency_ms": latency_ms,
+        "prompt_tokens": res.usage["prompt_tokens"],
+        "completion_tokens": res.usage["completion_tokens"],
+        "model": settings.llm_model,
+    })
 
     return GenerateResponse(
         question=req.question,
-        sql=sql,
-        tables_used=result.tables_used,
-        confidence=result.confidence,
-        columns=columns,
-        rows=rows,
-        row_count=len(rows),
-        truncated=truncated,
-        error=error,
-        error_stage=stage,
-        query_cost=cost,
-        latency_ms=int((time.perf_counter() - start) * 1000),
-        usage=usage,
+        sql=res.sql,
+        tables_used=res.tables_used,
+        confidence=res.confidence,
+        columns=res.columns,
+        rows=res.rows,
+        row_count=len(res.rows),
+        truncated=res.truncated,
+        error=res.error,
+        error_stage=res.error_stage,
+        query_cost=res.query_cost,
+        attempts=len(res.attempts),
+        attempt_history=[AttemptOut(**vars(a)) for a in res.attempts],
+        latency_ms=latency_ms,
+        usage=res.usage,
     )

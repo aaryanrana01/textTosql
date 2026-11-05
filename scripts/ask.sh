@@ -8,12 +8,15 @@ import json, sys
 r = json.load(sys.stdin)
 if "detail" in r:
     print("FAILED:", r["detail"]); sys.exit()
+for i, a in enumerate(r.get("attempt_history", []), 1):
+    if a.get("error"):
+        print("Attempt", i, "failed [" + str(a.get("stage")) + "]:", a["error"][:150])
 print("SQL:", r["sql"])
 print("Columns:", r["columns"])
 for row in r["rows"][:10]:
     print("  ", row)
-print("Rows:", r["row_count"], "| truncated:", r["truncated"], "| cost:", r.get("query_cost"),
-      "| ms:", r["latency_ms"], "| tokens:", r["usage"])
+print("Rows:", r["row_count"], "| attempts:", r.get("attempts"), "| truncated:", r["truncated"],
+      "| cost:", r.get("query_cost"), "| ms:", r["latency_ms"], "| tokens:", r["usage"])
 if r.get("error"):
     print("ERROR [" + str(r.get("error_stage")) + "]:", r["error"])
 '

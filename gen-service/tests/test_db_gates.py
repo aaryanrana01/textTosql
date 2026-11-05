@@ -55,3 +55,8 @@ def test_cost_gate():
     too_expensive = {k: round(v) for k, v in ref_costs.items() if v > settings.max_query_cost}
     assert not too_expensive, f"legitimate queries over the cost limit: {too_expensive}"
     assert cross_join > settings.max_query_cost
+
+def test_reader_cannot_see_app_schema():
+    with reader_conn() as conn:
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            conn.execute("SELECT * FROM app.request_log")

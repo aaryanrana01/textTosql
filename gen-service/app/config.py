@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     # Database
     postgres_db: str
     reader_password: str
+    app_user_password: str
     db_host: str = "localhost"
     db_port: int = 5432
 

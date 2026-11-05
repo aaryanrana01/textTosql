@@ -1,0 +1,178 @@
+{
+  "label": "baseline_business",
+  "summary": {
+    "accuracy": 20.0,
+    "answerable": 10,
+    "core_accuracy": 0.0,
+    "by_difficulty": {
+      "business": "2/10 (20.0%)"
+    },
+    "refusal_rate": 0.0,
+    "false_refusals": 0,
+    "avg_latency_ms": 757,
+    "avg_prompt_tokens": 768,
+    "avg_completion_tokens": 135
+  },
+  "results": [
+    {
+      "id": "b01",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "How many VIP customers do we have?",
+      "sql": "SELECT COUNT(*) AS vip_customer_count FROM customer WHERE activebool = true;",
+      "refused": false,
+      "latency_ms": 662,
+      "usage": {
+        "prompt_tokens": 766,
+        "completion_tokens": 125
+      },
+      "correct": false,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b02",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "What is our late return rate?",
+      "sql": "SELECT CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(CASE WHEN r.return_date > r.rental_date + (f.rental_duration || ' days')::interval THEN 1 ELSE 0 END)::numeric / COUNT(*) END AS late_return_rate FROM rental r JOIN inventory i ON r.inventory_id = i.inventory_id JOIN film f ON i.film_id = f.film_id WHERE r.return_date IS NOT NULL;",
+      "refused": false,
+      "latency_ms": 900,
+      "usage": {
+        "prompt_tokens": 765,
+        "completion_tokens": 188
+      },
+      "correct": false,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b03",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "What is our average order value?",
+      "sql": "SELECT AVG(amount) AS average_order_value FROM payment;",
+      "refused": false,
+      "latency_ms": 354,
+      "usage": {
+        "prompt_tokens": 765,
+        "completion_tokens": 63
+      },
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b04",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "What was our catalog utilization in 2025?",
+      "sql": "SELECT COUNT(*) AS rentals_2025 FROM rental WHERE EXTRACT(YEAR FROM rental_date) = 2025;",
+      "refused": false,
+      "latency_ms": 400,
+      "usage": {
+        "prompt_tokens": 768,
+        "completion_tokens": 77
+      },
+      "correct": false,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b05",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "What was our customer retention rate from 2024 to 2025?",
+      "sql": "SELECT CASE WHEN start_cnt=0 THEN NULL ELSE (retained_cnt::numeric/start_cnt) END AS retention_rate FROM ( SELECT COUNT(*) AS start_cnt FROM customer WHERE create_date <= DATE '2024-12-31' ) s CROSS JOIN LATERAL ( SELECT COUNT(*) AS retained_cnt FROM customer WHERE create_date <= DATE '2024-12-31' AND activebool = TRUE ) r;",
+      "refused": false,
+      "latency_ms": 698,
+      "usage": {
+        "prompt_tokens": 773,
+        "completion_tokens": 229
+      },
+      "correct": false,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b06",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "How many churned customers do we have?",
+      "sql": "SELECT COUNT(*) AS churned_customers FROM customer WHERE activebool = false;",
+      "refused": false,
+      "latency_ms": 533,
+      "usage": {
+        "prompt_tokens": 767,
+        "completion_tokens": 73
+      },
+      "correct": false,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b07",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "Which film category is our best performer?",
+      "sql": "SELECT c.name AS category_name, COUNT(r.rental_id) AS rental_count FROM category c JOIN film_category fc ON c.category_id = fc.category_id JOIN film f ON fc.film_id = f.film_id JOIN inventory i ON f.film_id = i.film_id JOIN rental r ON i.inventory_id = r.inventory_id GROUP BY c.name ORDER BY rental_count DESC LIMIT 1;",
+      "refused": false,
+      "latency_ms": 931,
+      "usage": {
+        "prompt_tokens": 766,
+        "completion_tokens": 144
+      },
+      "correct": false,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b08",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "What was our revenue per active title in 2025?",
+      "sql": "SELECT f.title, SUM(p.amount) AS revenue_2025 FROM film f JOIN inventory i ON i.film_id = f.film_id JOIN rental r ON r.inventory_id = i.inventory_id JOIN payment p ON p.rental_id = r.rental_id WHERE EXTRACT(YEAR FROM r.rental_date) = 2025 GROUP BY f.title",
+      "refused": false,
+      "latency_ms": 910,
+      "usage": {
+        "prompt_tokens": 770,
+        "completion_tokens": 159
+      },
+      "correct": false,
+      "gold_rows": 1,
+      "pred_rows": 954
+    },
+    {
+      "id": "b09",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "How many dormant titles do we have?",
+      "sql": "SELECT COUNT(*) AS dormant_titles FROM film f WHERE NOT EXISTS (SELECT 1 FROM inventory i JOIN rental r ON r.inventory_id = i.inventory_id WHERE i.film_id = f.film_id);",
+      "refused": false,
+      "latency_ms": 761,
+      "usage": {
+        "prompt_tokens": 766,
+        "completion_tokens": 128
+      },
+      "correct": false,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b10",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "What was our year-over-year revenue growth in 2025?",
+      "sql": "SELECT CASE WHEN prev_year_rev = 0 THEN NULL ELSE (curr_year_rev - prev_year_rev)::numeric / prev_year_rev * 100 END AS yoy_growth_percent FROM ( SELECT SUM(CASE WHEN EXTRACT(YEAR FROM payment_date) = 2025 THEN amount END) AS curr_year_rev, SUM(CASE WHEN EXTRACT(YEAR FROM payment_date) = 2024 THEN amount END) AS prev_year_rev FROM payment ) sub;",
+      "refused": false,
+      "latency_ms": 1418,
+      "usage": {
+        "prompt_tokens": 771,
+        "completion_tokens": 167
+      },
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    }
+  ]
+}

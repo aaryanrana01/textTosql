@@ -115,11 +115,13 @@ def summarize(results):
         return round(100 * part / whole, 1) if whole else 0.0
 
     answerable = [r for r in results if r["expect"] == "answer"]
+    core = [r for r in answerable if r["difficulty"] in ("easy", "medium", "hard")]
     refusals = [r for r in results if r["expect"] == "refuse"]
     with_usage = [r for r in results if r.get("usage")]
     summary = {
         "accuracy": pct(sum(r["correct"] for r in answerable), len(answerable)),
         "answerable": len(answerable),
+        "core_accuracy": pct(sum(r["correct"] for r in core), len(core)),
         "by_difficulty": {},
         "refusal_rate": pct(sum(r["correct"] for r in refusals), len(refusals)),
         "false_refusals": sum(1 for r in answerable if r.get("refused")),
@@ -127,9 +129,11 @@ def summarize(results):
         "avg_prompt_tokens": round(sum(r["usage"].get("prompt_tokens", 0) for r in with_usage) / len(with_usage)) if with_usage else None,
         "avg_completion_tokens": round(sum(r["usage"].get("completion_tokens", 0) for r in with_usage) / len(with_usage)) if with_usage else None,
     }
-    for level in ("easy", "medium", "hard"):
+    for level in ("easy", "medium", "hard", "business"):
         group = [r for r in answerable if r["difficulty"] == level]
-        summary["by_difficulty"][level] = f"{sum(r['correct'] for r in group)}/{len(group)} ({pct(sum(r['correct'] for r in group), len(group))}%)"
+        if group:
+            correct = sum(r["correct"] for r in group)
+            summary["by_difficulty"][level] = f"{correct}/{len(group)} ({pct(correct, len(group))}%)"
     return summary
 
 
@@ -137,10 +141,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--label", default="run", help="name for this run, e.g. baseline")
     parser.add_argument("--limit", type=int, help="only run the first N questions")
+    parser.add_argument("--only", help="comma-separated id prefixes to run, e.g. b or h,b")
     parser.add_argument("--sleep", type=float, default=8.0, help="seconds between questions")
     args = parser.parse_args()
 
     items = [json.loads(line) for line in (ROOT / "evals" / "dataset.jsonl").read_text().splitlines() if line.strip()]
+    if args.only:
+        prefixes = tuple(p.strip() for p in args.only.split(","))
+        items = [i for i in items if i["id"].startswith(prefixes)]
     if args.limit:
         items = items[: args.limit]
 

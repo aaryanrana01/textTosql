@@ -146,13 +146,14 @@ def summarize(results):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset", default=str(ROOT / "evals" / "dataset.jsonl"), help="path to a .jsonl question set")
     parser.add_argument("--label", default="run", help="name for this run, e.g. baseline")
     parser.add_argument("--limit", type=int, help="only run the first N questions")
     parser.add_argument("--only", help="comma-separated id prefixes to run, e.g. b or h,b")
     parser.add_argument("--sleep", type=float, default=8.0, help="seconds between questions")
     args = parser.parse_args()
 
-    items = [json.loads(line) for line in (ROOT / "evals" / "dataset.jsonl").read_text().splitlines() if line.strip()]
+    items = [json.loads(line) for line in Path(args.dataset).read_text().splitlines() if line.strip()]   
     if args.only:
         prefixes = tuple(p.strip() for p in args.only.split(","))
         items = [i for i in items if i["id"].startswith(prefixes)]

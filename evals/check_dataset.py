@@ -9,7 +9,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "gen-service"))
 from app.config import settings  # noqa: E402
 
-items = [json.loads(line) for line in (ROOT / "evals" / "dataset.jsonl").read_text().splitlines() if line.strip()]
+path = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "evals" / "dataset.jsonl"
+items = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 problems = 0
 with psycopg.connect(

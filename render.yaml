@@ -1,0 +1,85 @@
+# Render Blueprint: creates both services with one click (Render dashboard -> New -> Blueprint).
+# Values marked "sync: false" are secrets: Render asks for them when the Blueprint is first applied,
+# so they never appear in this file or in git.
+services:
+  # The generation service: turns questions into safe SQL.
+  - type: web
+    name: textsql-gen
+    runtime: python
+    region: singapore
+    plan: free
+    rootDir: gen-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.14.0"            # set to the exact output of `python --version` in your Codespace
+      - key: POSTGRES_DB
+        value: pagila
+      - key: DB_SSLMODE
+        value: require             # Neon accepts only encrypted connections
+      - key: LLM_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: LLM_MODEL
+        value: openai/gpt-oss-120b
+      - key: LLM_REASONING_EFFORT
+        value: low
+      - key: DAILY_TOKEN_BUDGET
+        value: "100000"            # half the daily Groq allowance: the public demo can never use it all
+      - key: MALLOC_ARENA_MAX
+        value: "2"                 # keeps Python's memory use lower on the 512 MB free instance
+      - key: OMP_NUM_THREADS
+        value: "1"                 # one worker thread for the embedding model: the free CPU is tiny anyway
+      - key: INTERNAL_API_TOKEN
+        generateValue: true        # Render creates a random shared password; Express receives the same one
+      - key: DB_HOST
+        sync: false
+      - key: READER_PASSWORD
+        sync: false
+      - key: APP_USER_PASSWORD
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: LANGFUSE_PUBLIC_KEY
+        sync: false
+      - key: LANGFUSE_SECRET_KEY
+        sync: false
+      - key: LANGFUSE_HOST
+        sync: false
+
+  # The website + API: serves the React app and handles logins, limits and history.
+  - type: web
+    name: textsql
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: cd web && npm ci && npm run build && cd ../api && npm ci --omit=dev
+    startCommand: cd api && npm start
+    healthCheckPath: /api/live     # "is Express running?" only, so a sleeping generation service never triggers a restart
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: POSTGRES_DB
+        value: pagila
+      - key: DB_SSL
+        value: "true"
+      - key: SERVE_WEB
+        value: "true"              # Express also hands out the built React app: one address
+      - key: TRUST_PROXY
+        value: "1"                 # visitors arrive through Render's front server; this lets rate limits see real visitors
+      - key: JWT_SECRET
+        generateValue: true        # a random signing key for login tokens
+      - key: INTERNAL_API_TOKEN
+        fromService:               # the same shared password Render generated for the generation service
+          type: web
+          name: textsql-gen
+          envVarKey: INTERNAL_API_TOKEN
+      - key: DB_HOST
+        sync: false
+      - key: API_USER_PASSWORD
+        sync: false
+      - key: GEN_SERVICE_URL
+        sync: false                # the generation service's address, e.g. https://textsql-gen.onrender.com

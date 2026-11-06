@@ -12,13 +12,14 @@ Every evaluation run of the text-to-SQL pipeline, what changed, and its measured
 - **Database:** Pagila on PostgreSQL 18 (15 tables, 51,805 rentals, 51,061 payments).
 - **Model:** Groq `openai/gpt-oss-120b`, reasoning effort `low`, temperature 0.
 - Every reference query is verified by `evals/check_dataset.py` before use.
+- **Evaluations bypass the answer cache** (`use_cache: false`), so they always measure the model, never cached answers.
 
 ## How scoring works
 - **Execution accuracy:** a question passes when the model's SQL returns the same data as the reference SQL. Both are run directly against the database, with no row cap.
 - **The comparison ignores** row order, column order, column names and extra columns. Numbers are rounded to 2 decimals.
 - **A query the service rejects or fails to run counts as wrong.**
 - **Refusal questions pass** only if the service explicitly refuses. **A false refusal** is an answerable question that was refused.
-- **Run:** `python evals/run_eval.py --label <name> --sleep 12` (add `--dataset evals/holdout.jsonl` for the held-out set). Results are saved to `evals/results/`.
+- **Run:** `python evals/run_eval.py --label <name> --sleep 12`. Add `--dataset evals/holdout.jsonl` for the held-out set, or `--min-accuracy <percent>` to fail when accuracy is below a threshold (used by CI). Results are saved to `evals/results/`.
 
 ## Development set: results by phase
 
@@ -60,6 +61,8 @@ Written after all development, frozen before its first run (see the commit histo
 
 **Conclusion:** core SQL generation and refusal generalise fully to unseen questions. Business-term handling generalises only partly, because the glossary matches phrases, not meanings. One of the three failures is a genuine model error.
 
+**Caveat on all results:** Pagila is a well-known public sample database, likely present in the model's training data, and the schema is small and cleanly designed. Accuracy on a private, messier schema would probably be lower; the harness accepts any question set (`--dataset`) to measure that.
+
 **Evidence-based next steps:**
 1. Match glossary terms by meaning (embedding similarity), which would catch "stopped renting" → churned.
 2. Ask a clarifying question for undefined terms instead of refusing.
@@ -78,6 +81,10 @@ Measured with `evals/retrieval_recall.py` (no LLM tokens): for each answerable d
 | Business-term tables from the semantic layer | **60/60 (100%)** | 5.2 |
 
 The full schema with descriptions is ~1,133 tokens; a typical retrieved schema is ~628 (about 45% less).
+
+## Continuous evaluation
+- **Every push:** GitHub Actions rebuilds the database from the setup scripts and runs all 178 automated tests (154 Python, 11 API, 8 UI, 5 MCP). This uses no LLM tokens.
+- **On demand:** the *Accuracy gate* workflow runs 14 benchmark questions across every difficulty, business terms and both refusal types, and fails below 90% accuracy. It's manual so that pushes never spend tokens.
 
 ## Notes by run
 

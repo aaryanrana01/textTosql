@@ -10,18 +10,6 @@ import { errorHandler, notFound } from './errors.js';
 import { authRouter } from './routes/auth.js';
 import { queryRouter } from './routes/queries.js';
 
-// A free-tier generation service sleeps when idle. The hosting platform only finishes waking it for a request
-// that WAITS until it is up; the quick health check below gives up after 3 seconds, too early to wake it.
-// So when that check fails, one patient request is sent in the background (at most one at a time).
-let wakeInFlight = null;
-
-function wakeGenerationService() {
-  if (wakeInFlight) return;
-  wakeInFlight = fetch(`${config.GEN_SERVICE_URL}/health`, { signal: AbortSignal.timeout(180_000) })
-    .catch(() => { /* still asleep or failing; the next health check will try again */ })
-    .finally(() => { wakeInFlight = null; });
-}
-
 export function createApp() {
   const app = express();
   app.set('trust proxy', config.TRUST_PROXY); // 1 behind a hosting provider's proxy, so rate limits see real client IPs
@@ -30,8 +18,8 @@ export function createApp() {
   app.use(express.json({ limit: '10kb' }));
   app.use(pinoHttp({ level: process.env.LOG_LEVEL ?? 'info', redact: ['req.headers.authorization'] }));
 
-  // Liveness: answers only "is Express running?". The hosting platform checks this one, so a sleeping
-  // generation service (free tier) never makes the platform think Express is broken and restart it.
+  // Liveness: answers only "is Express running?". The hosting platform checks this one, so the Python
+  // service still loading its model after a wake-up never makes the platform think Express is broken.
   app.get('/api/live', (_req, res) => {
     res.json({ status: 'ok' });
   });
@@ -47,7 +35,6 @@ export function createApp() {
       const r = await fetch(`${config.GEN_SERVICE_URL}/health`, { signal: AbortSignal.timeout(3000) });
       checks.generation_service = r.ok;
     } catch { /* reported as false */ }
-    if (!checks.generation_service) wakeGenerationService();
     const healthy = Object.values(checks).every(Boolean);
     res.status(healthy ? 200 : 503).json({ status: healthy ? 'ok' : 'degraded', ...checks });
   });

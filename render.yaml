@@ -1,26 +1,22 @@
-# Render Blueprint: creates both services with one click (Render dashboard -> New -> Blueprint).
-# Values marked "sync: false" are secrets: Render asks for them when the Blueprint is first applied,
-# so they never appear in this file or in git.
+# Render Blueprint: QueryWise runs as ONE service. Express (API + React UI) and the Python generation
+# service share a container, so a visitor's browser wakes both together, and Express reaches the Python
+# service over localhost instead of calling a second, separately sleeping service.
+# Values marked "sync: false" are secrets: Render asks for them, so they never appear in this file or in git.
 services:
-  # The generation service: turns questions into safe SQL.
   - type: web
-    name: textsql-gen
-    runtime: python
+    name: querywise
+    runtime: docker
+    dockerfilePath: ./Dockerfile
     region: singapore
     plan: free
-    rootDir: gen-service
-    # Installs packages, then downloads the embedding model ONCE into gen-service/.model_cache.
-    # A free instance that wakes from sleep then only loads it, instead of downloading it on every start.
-    buildCommand: pip install -r requirements.txt && python -c "from fastembed import TextEmbedding; TextEmbedding('BAAI/bge-small-en-v1.5', cache_dir='.model_cache')"
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /health
+    healthCheckPath: /api/live
     envVars:
-      - key: PYTHON_VERSION
-        value: "3.14.0"            # the exact output of `python --version` in your Codespace
       - key: POSTGRES_DB
         value: pagila
       - key: DB_SSLMODE
-        value: require             # Neon accepts only encrypted connections
+        value: require             # Python: Neon accepts only encrypted connections
+      - key: DB_SSL
+        value: "true"              # Express: the same, with certificate verification
       - key: LLM_BASE_URL
         value: https://api.groq.com/openai/v1
       - key: LLM_MODEL
@@ -29,17 +25,19 @@ services:
         value: low
       - key: DAILY_TOKEN_BUDGET
         value: "100000"            # half the daily Groq allowance: the public demo can never use it all
-      - key: MALLOC_ARENA_MAX
-        value: "2"                 # keeps Python's memory use lower on the 512 MB free instance
-      - key: OMP_NUM_THREADS
-        value: "1"                 # one worker thread for the embedding model: the free CPU is tiny anyway
+      - key: TRUST_PROXY
+        value: "1"                 # visitors arrive through Render's front server; lets rate limits see real visitors
       - key: INTERNAL_API_TOKEN
-        generateValue: true        # Render creates a random shared password; Express receives the same one
+        generateValue: true        # shared secret between Express and the Python service (defence in depth)
+      - key: JWT_SECRET
+        generateValue: true        # random signing key for login tokens
       - key: DB_HOST
         sync: false
       - key: READER_PASSWORD
         sync: false
       - key: APP_USER_PASSWORD
+        sync: false
+      - key: API_USER_PASSWORD
         sync: false
       - key: LLM_API_KEY
         sync: false
@@ -51,39 +49,3 @@ services:
         sync: false
       - key: LANGFUSE_HOST
         sync: false
-
-  # The website + API: serves the React app and handles logins, limits and history.
-  - type: web
-    name: textsql
-    runtime: node
-    region: singapore
-    plan: free
-    buildCommand: cd web && npm ci && npm run build && cd ../api && npm ci --omit=dev
-    startCommand: cd api && npm start
-    healthCheckPath: /api/live     # "is Express running?" only, so a sleeping generation service never triggers a restart
-    envVars:
-      - key: NODE_VERSION
-        value: "24"
-      - key: POSTGRES_DB
-        value: pagila
-      - key: DB_SSL
-        value: "true"
-      - key: SERVE_WEB
-        value: "true"              # Express also hands out the built React app: one address
-      - key: TRUST_PROXY
-        value: "1"                 # visitors arrive through Render's front server; this lets rate limits see real visitors
-      - key: CORS_ORIGIN
-        value: https://textsql-3oa5.onrender.com   # the site's own address (same origin; kept correct for tidiness)
-      - key: JWT_SECRET
-        generateValue: true        # a random signing key for login tokens
-      - key: INTERNAL_API_TOKEN
-        fromService:               # the same shared password Render generated for the generation service
-          type: web
-          name: textsql-gen
-          envVarKey: INTERNAL_API_TOKEN
-      - key: DB_HOST
-        sync: false
-      - key: API_USER_PASSWORD
-        sync: false
-      - key: GEN_SERVICE_URL
-        sync: false                # the generation service's address: https://textsql-gen.onrender.com

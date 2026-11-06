@@ -1,0 +1,12 @@
+# Never copied into the image: secrets, local environments, build output, history.
+.env
+.git
+.github
+.venv
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+gen-service/.model_cache
+web/dist
+evals/results
+mcp-server

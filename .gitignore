@@ -24,3 +24,4 @@ build/
 *.log
 EOF.venv/
 dist/
+.pytest_cache/

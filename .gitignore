@@ -25,3 +25,5 @@ build/
 EOF.venv/
 dist/
 .pytest_cache/
+
+.model_cache/

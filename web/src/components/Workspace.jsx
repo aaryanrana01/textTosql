@@ -5,11 +5,25 @@ import HistoryList from './HistoryList.jsx';
 import QuestionForm from './QuestionForm.jsx';
 import ResultView from './ResultView.jsx';
 
-function Thinking() {
+function Thinking({ engineReady }) {
   return (
     <div role="status" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-      <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
-      Finding the right tables, writing SQL and running safety checks…
+      <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+      {engineReady
+        ? 'Finding the right tables, writing SQL and running safety checks…'
+        : 'Waking up the query engine first, then writing your SQL… this can take about a minute.'}
+    </div>
+  );
+}
+
+function WakingUp() {
+  return (
+    <div role="status" className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      <span className="mt-0.5 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-amber-200 border-t-amber-600" />
+      <span>
+        <strong className="font-medium">Waking up the demo…</strong> This free-tier server sleeps when nobody is using
+        it, so the first start takes about a minute. You can type your question in the meantime.
+      </span>
     </div>
   );
 }
@@ -18,11 +32,27 @@ export default function Workspace({ user, onSignOut }) {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState(null);
 
+  // Asks the API whether the query engine is awake. The request itself also wakes a sleeping engine,
+  // so it starts loading the moment the page opens instead of when the first question arrives.
+  // It re-checks every 5 seconds until the engine is ready, and again when the tab regains focus later.
+  const health = useQuery({
+    queryKey: ['health'],
+    queryFn: () => api('/health'),
+    retry: false,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) =>
+      query.state.status === 'success' && query.state.data?.generation_service ? false : 5000,
+  });
+  const engineReady = health.isSuccess && health.data?.generation_service === true;
+
   const ask = useMutation({
     mutationFn: (question) => api('/query', { method: 'POST', body: { question } }),
     onSuccess: (result) => {
       queryClient.setQueryData(['query', result.id], result); // show the full answer without refetching
       queryClient.invalidateQueries({ queryKey: ['history'] });
+      // An answer arrived, so the engine is clearly awake.
+      queryClient.setQueryData(['health'], { status: 'ok', database: true, generation_service: true });
       setSelectedId(result.id);
     },
   });
@@ -58,7 +88,8 @@ export default function Workspace({ user, onSignOut }) {
           <div className="mx-auto max-w-4xl space-y-6">
             <QuestionForm onAsk={(q) => ask.mutate(q)} pending={ask.isPending} />
 
-            {ask.isPending && <Thinking />}
+            {health.isFetched && !engineReady && !ask.isPending && <WakingUp />}
+            {ask.isPending && <Thinking engineReady={engineReady} />}
             {ask.error && (
               <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
                 {ask.error.message}

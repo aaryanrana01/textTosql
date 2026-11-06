@@ -9,12 +9,14 @@ services:
     region: singapore
     plan: free
     rootDir: gen-service
-    buildCommand: pip install -r requirements.txt
+    # Installs packages, then downloads the embedding model ONCE into gen-service/.model_cache.
+    # A free instance that wakes from sleep then only loads it, instead of downloading it on every start.
+    buildCommand: pip install -r requirements.txt && python -c "from fastembed import TextEmbedding; TextEmbedding('BAAI/bge-small-en-v1.5', cache_dir='.model_cache')"
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
-        value: "3.14.0"            # set to the exact output of `python --version` in your Codespace
+        value: "3.14.0"            # the exact output of `python --version` in your Codespace
       - key: POSTGRES_DB
         value: pagila
       - key: DB_SSLMODE
@@ -70,6 +72,8 @@ services:
         value: "true"              # Express also hands out the built React app: one address
       - key: TRUST_PROXY
         value: "1"                 # visitors arrive through Render's front server; this lets rate limits see real visitors
+      - key: CORS_ORIGIN
+        value: https://textsql-3oa5.onrender.com   # the site's own address (same origin; kept correct for tidiness)
       - key: JWT_SECRET
         generateValue: true        # a random signing key for login tokens
       - key: INTERNAL_API_TOKEN
@@ -82,4 +86,4 @@ services:
       - key: API_USER_PASSWORD
         sync: false
       - key: GEN_SERVICE_URL
-        sync: false                # the generation service's address, e.g. https://textsql-gen.onrender.com
+        sync: false                # the generation service's address: https://textsql-gen.onrender.com

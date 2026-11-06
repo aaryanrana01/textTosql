@@ -2,6 +2,7 @@
 and business definitions (semantic layer)."""
 import asyncio
 import logging
+from pathlib import Path
 
 from fastembed import TextEmbedding
 
@@ -16,14 +17,20 @@ logger = logging.getLogger(__name__)
 
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"  # 384 dimensions, small and fast on CPU
 EMBED_DIM = 384
+
+# The model files are kept inside the service folder (gen-service/.model_cache), so a hosting build step
+# can download them once. A sleeping server that wakes up then only loads the model from disk,
+# instead of downloading 67 MB again on every start.
+MODEL_CACHE_DIR = Path(__file__).resolve().parents[1] / ".model_cache"
+
 _model: TextEmbedding | None = None
 
 
 def get_model() -> TextEmbedding:
-    """Load the embedding model once (it is downloaded on first use)."""
+    """Load the embedding model once (downloaded into MODEL_CACHE_DIR only if it isn't there yet)."""
     global _model
     if _model is None:
-        _model = TextEmbedding(EMBED_MODEL)
+        _model = TextEmbedding(EMBED_MODEL, cache_dir=str(MODEL_CACHE_DIR))
     return _model
 
 
@@ -36,15 +43,6 @@ def embed_query(text: str) -> str:
 
 
 @observe(name="retrieve-context", capture_output=False)
-async def build_context(question: str) -> PromptContext:
-    ...  # (everything inside stays the same, except the last line)
-
-    update_current_span(output={
-       "tables": sorted(tables), "terms": [t["name"] for t in terms], "examples": len(examples),
-    })
-    return PromptContext(schema_text=CATALOG.render(tables), tables=sorted(tables), terms=terms, examples=examples)
-
-    
 async def build_context(question: str) -> PromptContext:
     terms = match_terms(question)
     tables = set(CATALOG.table_names)
@@ -72,4 +70,8 @@ async def build_context(question: str) -> PromptContext:
                 )
                 examples = [{"question": q, "sql": s} for q, s in await cur.fetchall()]
 
+    # Only a compact summary goes to the trace, not the whole prompt context.
+    update_current_span(output={
+        "tables": sorted(tables), "terms": [t["name"] for t in terms], "examples": len(examples),
+    })
     return PromptContext(schema_text=CATALOG.render(tables), tables=sorted(tables), terms=terms, examples=examples)

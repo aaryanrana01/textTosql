@@ -70,3 +70,10 @@ jobs:
       - name: UI tests and production build
         working-directory: web
         run: npm ci && npm test && npm run build
+
+      - name: MCP server tests
+        run: |
+          pip install -r mcp-server/requirements.txt
+          cd mcp-server && python -m pytest -q
+
+          

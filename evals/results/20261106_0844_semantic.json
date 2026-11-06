@@ -1,0 +1,1161 @@
+{
+  "label": "semantic",
+  "summary": {
+    "accuracy": 100.0,
+    "answerable": 60,
+    "core_accuracy": 100.0,
+    "by_difficulty": {
+      "easy": "15/15 (100.0%)",
+      "medium": "20/20 (100.0%)",
+      "hard": "15/15 (100.0%)",
+      "business": "10/10 (100.0%)"
+    },
+    "refusal_rate": 0.0,
+    "false_refusals": 0,
+    "avg_latency_ms": 731,
+    "avg_prompt_tokens": 988,
+    "avg_completion_tokens": 106
+  },
+  "results": [
+    {
+      "id": "e01",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "How many films are in the database?",
+      "sql": "SELECT COUNT(*) AS film_count FROM film LIMIT 1000",
+      "refused": false,
+      "latency_ms": 542,
+      "usage": {
+        "prompt_tokens": 873,
+        "completion_tokens": 39
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "e02",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "How many actors are in the database?",
+      "sql": "SELECT COUNT(*) AS actor_count FROM actor LIMIT 1000",
+      "refused": false,
+      "latency_ms": 469,
+      "usage": {
+        "prompt_tokens": 848,
+        "completion_tokens": 41
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "e03",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "How many customers are there in total?",
+      "sql": "SELECT COUNT(*) FROM customer LIMIT 1000",
+      "refused": false,
+      "latency_ms": 324,
+      "usage": {
+        "prompt_tokens": 816,
+        "completion_tokens": 34
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "e04",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "How many films have the rating R?",
+      "sql": "SELECT COUNT(*) AS film_count FROM film WHERE rating = 'R' LIMIT 1000",
+      "refused": false,
+      "latency_ms": 601,
+      "usage": {
+        "prompt_tokens": 809,
+        "completion_tokens": 48
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "e05",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "How many films are there for each rating? Show the rating and the count.",
+      "sql": "SELECT rating, COUNT(*) AS count FROM film GROUP BY rating LIMIT 1000",
+      "refused": false,
+      "latency_ms": 643,
+      "usage": {
+        "prompt_tokens": 881,
+        "completion_tokens": 70
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 5,
+      "pred_rows": 5
+    },
+    {
+      "id": "e06",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "What is the average rental rate across all films?",
+      "sql": "SELECT AVG(rental_rate) AS average_rental_rate FROM film LIMIT 1000",
+      "refused": false,
+      "latency_ms": 600,
+      "usage": {
+        "prompt_tokens": 909,
+        "completion_tokens": 64
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "e07",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "What is the length in minutes of the longest film?",
+      "sql": "SELECT MAX(length) AS longest_length FROM film LIMIT 1000",
+      "refused": false,
+      "latency_ms": 581,
+      "usage": {
+        "prompt_tokens": 770,
+        "completion_tokens": 62
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "e08",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "How many films are longer than 150 minutes?",
+      "sql": "SELECT COUNT(*) AS film_count FROM film WHERE length > 150 LIMIT 1000",
+      "refused": false,
+      "latency_ms": 567,
+      "usage": {
+        "prompt_tokens": 838,
+        "completion_tokens": 52
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "e09",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "How many film categories are there?",
+      "sql": "SELECT COUNT(*) AS category_count FROM category LIMIT 1000",
+      "refused": false,
+      "latency_ms": 809,
+      "usage": {
+        "prompt_tokens": 841,
+        "completion_tokens": 43
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "e10",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "List the names of all film categories.",
+      "sql": "SELECT name FROM category LIMIT 1000",
+      "refused": false,
+      "latency_ms": 491,
+      "usage": {
+        "prompt_tokens": 767,
+        "completion_tokens": 39
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 16,
+      "pred_rows": 16
+    },
+    {
+      "id": "e11",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "How many cities are in the database?",
+      "sql": "SELECT COUNT(*) AS city_count FROM city LIMIT 1000",
+      "refused": false,
+      "latency_ms": 551,
+      "usage": {
+        "prompt_tokens": 958,
+        "completion_tokens": 48
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "e12",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "How many payments have been made in total?",
+      "sql": "SELECT COUNT(*) FROM payment LIMIT 1000",
+      "refused": false,
+      "latency_ms": 941,
+      "usage": {
+        "prompt_tokens": 1097,
+        "completion_tokens": 41
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "e13",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "What is the total amount of all payments?",
+      "sql": "SELECT SUM(amount) AS total_payments FROM payment LIMIT 1000",
+      "refused": false,
+      "latency_ms": 505,
+      "usage": {
+        "prompt_tokens": 1135,
+        "completion_tokens": 48
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "e14",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "How many rentals have not been returned yet?",
+      "sql": "SELECT COUNT(*) FROM rental WHERE return_date IS NULL LIMIT 1000",
+      "refused": false,
+      "latency_ms": 538,
+      "usage": {
+        "prompt_tokens": 962,
+        "completion_tokens": 53
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "e15",
+      "difficulty": "easy",
+      "expect": "answer",
+      "question": "How many films have a replacement cost above 25?",
+      "sql": "SELECT COUNT(*) AS film_count FROM film WHERE replacement_cost > 25 LIMIT 1000",
+      "refused": false,
+      "latency_ms": 375,
+      "usage": {
+        "prompt_tokens": 850,
+        "completion_tokens": 56
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "m01",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "For each store that has customers, how many customers does it have? Show the store id and the count.",
+      "sql": "SELECT store_id, COUNT(*) AS customer_count FROM customer GROUP BY store_id LIMIT 1000",
+      "refused": false,
+      "latency_ms": 630,
+      "usage": {
+        "prompt_tokens": 893,
+        "completion_tokens": 69
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 2,
+      "pred_rows": 2
+    },
+    {
+      "id": "m02",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "How many films are in each category? Show the category name and the number of films.",
+      "sql": "SELECT c.name, COUNT(*) AS film_count FROM film_category AS fc JOIN category AS c ON fc.category_id = c.category_id GROUP BY c.name ORDER BY c.name LIMIT 1000",
+      "refused": false,
+      "latency_ms": 440,
+      "usage": {
+        "prompt_tokens": 891,
+        "completion_tokens": 73
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 16,
+      "pred_rows": 16
+    },
+    {
+      "id": "m03",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "How many films are there in each language? Show the language name and the count, and only include languages that have at least one film.",
+      "sql": "SELECT l.name, COUNT(*) AS film_count FROM film AS f JOIN language AS l ON f.language_id = l.language_id GROUP BY l.name HAVING COUNT(*) > 0 LIMIT 1000",
+      "refused": false,
+      "latency_ms": 694,
+      "usage": {
+        "prompt_tokens": 799,
+        "completion_tokens": 80
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 6,
+      "pred_rows": 6
+    },
+    {
+      "id": "m04",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "What is the total payment amount handled by each staff member? Show first name, last name and the total.",
+      "sql": "SELECT s.first_name, s.last_name, SUM(p.amount) AS total_amount FROM payment AS p JOIN staff AS s ON p.staff_id = s.staff_id GROUP BY s.staff_id, s.first_name, s.last_name LIMIT 1000",
+      "refused": false,
+      "latency_ms": 698,
+      "usage": {
+        "prompt_tokens": 943,
+        "completion_tokens": 82
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 2,
+      "pred_rows": 2
+    },
+    {
+      "id": "m05",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "How many rentals were made in each year? Show the year as a number and the count.",
+      "sql": "SELECT CAST(EXTRACT(YEAR FROM rental_date) AS INT) AS year, COUNT(*) AS rentals_count FROM rental GROUP BY year ORDER BY year LIMIT 1000",
+      "refused": false,
+      "latency_ms": 678,
+      "usage": {
+        "prompt_tokens": 1133,
+        "completion_tokens": 63
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 5,
+      "pred_rows": 5
+    },
+    {
+      "id": "m06",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "What was the total payment revenue in each month of 2025? Show the month number (1-12) and the total.",
+      "sql": "SELECT CAST(EXTRACT(MONTH FROM payment_date) AS INT) AS month, SUM(amount) AS total_revenue FROM payment WHERE payment_date >= '2025-01-01' AND payment_date < '2026-01-01' GROUP BY month ORDER BY month LIMIT 1000",
+      "refused": false,
+      "latency_ms": 811,
+      "usage": {
+        "prompt_tokens": 1163,
+        "completion_tokens": 103
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 12,
+      "pred_rows": 12
+    },
+    {
+      "id": "m07",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "Which country has the most cities? Show the country name and its number of cities.",
+      "sql": "SELECT co.country, COUNT(*) AS city_count FROM city AS ci JOIN country AS co ON ci.country_id = co.country_id GROUP BY co.country_id, co.country ORDER BY city_count DESC LIMIT 1",
+      "refused": false,
+      "latency_ms": 439,
+      "usage": {
+        "prompt_tokens": 1048,
+        "completion_tokens": 79
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "m08",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "How many customers have an address in India?",
+      "sql": "SELECT COUNT(*) FROM customer AS cu JOIN address AS a ON cu.address_id = a.address_id JOIN city AS ci ON a.city_id = ci.city_id JOIN country AS co ON ci.country_id = co.country_id WHERE co.country = 'India' LIMIT 1000",
+      "refused": false,
+      "latency_ms": 610,
+      "usage": {
+        "prompt_tokens": 806,
+        "completion_tokens": 92
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "m09",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "What is the average film length for each rating? Show the rating and the average length.",
+      "sql": "SELECT f.rating, AVG(f.length) AS average_length FROM film AS f GROUP BY f.rating LIMIT 1000",
+      "refused": false,
+      "latency_ms": 777,
+      "usage": {
+        "prompt_tokens": 882,
+        "completion_tokens": 70
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 5,
+      "pred_rows": 5
+    },
+    {
+      "id": "m10",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "Which 5 customers have spent the most in total? Show first name, last name and total spent.",
+      "sql": "SELECT c.first_name, c.last_name, SUM(p.amount) AS total_spent FROM payment AS p JOIN customer AS c ON p.customer_id = c.customer_id GROUP BY c.customer_id, c.first_name, c.last_name ORDER BY total_spent DESC LIMIT 5",
+      "refused": false,
+      "latency_ms": 497,
+      "usage": {
+        "prompt_tokens": 1219,
+        "completion_tokens": 93
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 5,
+      "pred_rows": 5
+    },
+    {
+      "id": "m11",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "How many inventory copies does each store hold? Show the store id and the count, only for stores that have inventory.",
+      "sql": "SELECT i.store_id, COUNT(*) AS copies FROM inventory AS i GROUP BY i.store_id HAVING COUNT(*) > 0 LIMIT 1000",
+      "refused": false,
+      "latency_ms": 673,
+      "usage": {
+        "prompt_tokens": 852,
+        "completion_tokens": 95
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 2,
+      "pred_rows": 2
+    },
+    {
+      "id": "m12",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "How many films has the actor PENELOPE GUINESS appeared in?",
+      "sql": "SELECT COUNT(*) AS film_count FROM film_actor AS fa JOIN actor AS a ON fa.actor_id = a.actor_id WHERE a.first_name = 'PENELOPE' AND a.last_name = 'GUINESS' LIMIT 1000",
+      "refused": false,
+      "latency_ms": 450,
+      "usage": {
+        "prompt_tokens": 869,
+        "completion_tokens": 97
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "m13",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "List the titles of films in the Horror category that are rated R.",
+      "sql": "SELECT f.title FROM film AS f JOIN film_category AS fc ON f.film_id = fc.film_id JOIN \"category\" AS c ON fc.category_id = c.category_id WHERE c.name = 'Horror' AND f.rating = 'R' LIMIT 1000",
+      "refused": false,
+      "latency_ms": 645,
+      "usage": {
+        "prompt_tokens": 797,
+        "completion_tokens": 84
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 29,
+      "pred_rows": 29
+    },
+    {
+      "id": "m14",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "How many rentals did each staff member process? Show first name, last name and the count.",
+      "sql": "SELECT s.first_name, s.last_name, COUNT(*) AS rental_count FROM rental AS r JOIN staff AS s ON r.staff_id = s.staff_id GROUP BY s.staff_id, s.first_name, s.last_name LIMIT 1000",
+      "refused": false,
+      "latency_ms": 673,
+      "usage": {
+        "prompt_tokens": 937,
+        "completion_tokens": 79
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 2,
+      "pred_rows": 2
+    },
+    {
+      "id": "m15",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "How many distinct customers rented at least one film in 2024?",
+      "sql": "SELECT COUNT(DISTINCT customer_id) AS distinct_customers FROM rental WHERE rental_date >= '2024-01-01' AND rental_date < '2025-01-01' LIMIT 1000",
+      "refused": false,
+      "latency_ms": 646,
+      "usage": {
+        "prompt_tokens": 1046,
+        "completion_tokens": 112
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "m16",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "Which film category has the highest average replacement cost? Show the category name and the average.",
+      "sql": "SELECT c.name, AVG(f.replacement_cost) AS avg_replacement_cost FROM film AS f JOIN film_category AS fc ON f.film_id = fc.film_id JOIN category AS c ON fc.category_id = c.category_id GROUP BY c.name ORDER BY avg_replacement_cost DESC LIMIT 1",
+      "refused": false,
+      "latency_ms": 710,
+      "usage": {
+        "prompt_tokens": 903,
+        "completion_tokens": 110
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "m17",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "How many customers signed up in each year? Show the year as a number and the count.",
+      "sql": "SELECT CAST(EXTRACT(YEAR FROM create_date) AS INT) AS year, COUNT(*) AS customer_count FROM customer GROUP BY year ORDER BY year LIMIT 1000",
+      "refused": false,
+      "latency_ms": 819,
+      "usage": {
+        "prompt_tokens": 1123,
+        "completion_tokens": 97
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 5,
+      "pred_rows": 5
+    },
+    {
+      "id": "m18",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "What is the total amount paid by the customer with customer id 1?",
+      "sql": "SELECT SUM(amount) FROM payment WHERE customer_id = 1 LIMIT 1000",
+      "refused": false,
+      "latency_ms": 642,
+      "usage": {
+        "prompt_tokens": 851,
+        "completion_tokens": 79
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "m19",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "How many films have no actors listed?",
+      "sql": "SELECT COUNT(*) AS films_without_actors FROM film AS f LEFT JOIN film_actor AS fa ON f.film_id = fa.film_id WHERE fa.actor_id IS NULL LIMIT 1000",
+      "refused": false,
+      "latency_ms": 431,
+      "usage": {
+        "prompt_tokens": 842,
+        "completion_tokens": 81
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "m20",
+      "difficulty": "medium",
+      "expect": "answer",
+      "question": "What is the average rental rate of films in each category? Show the category name and the average.",
+      "sql": "SELECT c.name, AVG(f.rental_rate) AS average_rental_rate FROM film AS f JOIN film_category AS fc ON f.film_id = fc.film_id JOIN category AS c ON fc.category_id = c.category_id GROUP BY c.name LIMIT 1000",
+      "refused": false,
+      "latency_ms": 671,
+      "usage": {
+        "prompt_tokens": 919,
+        "completion_tokens": 97
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 16,
+      "pred_rows": 16
+    },
+    {
+      "id": "h01",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "What are the top 5 film categories by total payment revenue? Show the category name and the revenue.",
+      "sql": "SELECT c.name, SUM(p.amount) AS revenue FROM payment AS p JOIN rental AS r ON p.rental_id = r.rental_id JOIN inventory AS i ON r.inventory_id = i.inventory_id JOIN film AS f ON i.film_id = f.film_id JOIN film_category AS fc ON f.film_id = fc.film_id JOIN category AS c ON fc.category_id = c.category_id GROUP BY c.name ORDER BY revenue DESC LIMIT 5",
+      "refused": false,
+      "latency_ms": 666,
+      "usage": {
+        "prompt_tokens": 1123,
+        "completion_tokens": 147
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 5,
+      "pred_rows": 5
+    },
+    {
+      "id": "h02",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "List the titles of films that have never been rented.",
+      "sql": "SELECT f.title FROM film AS f WHERE NOT EXISTS(SELECT 1 FROM rental AS r JOIN inventory AS i ON r.inventory_id = i.inventory_id WHERE i.film_id = f.film_id) LIMIT 1000",
+      "refused": false,
+      "latency_ms": 689,
+      "usage": {
+        "prompt_tokens": 910,
+        "completion_tokens": 130
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 42,
+      "pred_rows": 42
+    },
+    {
+      "id": "h03",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "For each film category, what is the average rental length in days, measured as return date minus rental date as a fractional number of days, counting only returned rentals? Show the category name and the average.",
+      "sql": "SELECT c.name, AVG(EXTRACT(EPOCH FROM (r.return_date - r.rental_date)) / 86400) AS avg_days FROM rental AS r JOIN inventory AS i ON r.inventory_id = i.inventory_id JOIN film AS f ON i.film_id = f.film_id JOIN film_category AS fc ON f.film_id = fc.film_id JOIN category AS c ON fc.category_id = c.category_id WHERE r.return_date IS NOT NULL GROUP BY c.name ORDER BY c.name LIMIT 1000",
+      "refused": false,
+      "latency_ms": 2079,
+      "usage": {
+        "prompt_tokens": 1072,
+        "completion_tokens": 380
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 16,
+      "pred_rows": 16
+    },
+    {
+      "id": "h04",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "How many customers have a total payment amount greater than the average total payment amount per customer?",
+      "sql": "SELECT COUNT(*) FROM (SELECT p.customer_id, SUM(p.amount) AS total FROM payment AS p GROUP BY p.customer_id) AS cust_totals WHERE total > (SELECT AVG(tot) FROM (SELECT SUM(p2.amount) AS tot FROM payment AS p2 GROUP BY p2.customer_id) AS sub) LIMIT 1000",
+      "refused": false,
+      "latency_ms": 726,
+      "usage": {
+        "prompt_tokens": 803,
+        "completion_tokens": 213
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "h05",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "Which 5 actors appear in films that generated the most total payment revenue? Show first name, last name and revenue.",
+      "sql": "SELECT a.first_name, a.last_name, SUM(p.amount) AS revenue FROM actor AS a JOIN film_actor AS fa ON a.actor_id = fa.actor_id JOIN film AS f ON fa.film_id = f.film_id JOIN inventory AS i ON f.film_id = i.film_id JOIN rental AS r ON i.inventory_id = r.inventory_id JOIN payment AS p ON r.rental_id = p.rental_id GROUP BY a.actor_id, a.first_name, a.last_name ORDER BY revenue DESC LIMIT 5",
+      "refused": false,
+      "latency_ms": 1052,
+      "usage": {
+        "prompt_tokens": 1053,
+        "completion_tokens": 173
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 5,
+      "pred_rows": 5
+    },
+    {
+      "id": "h06",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "Among returned rentals, what percentage were returned late, meaning the time between rental date and return date was longer than the film's rental_duration in days?",
+      "sql": "SELECT 100.0 * COUNT(*) FILTER(WHERE r.return_date - r.rental_date > CAST((f.rental_duration || ' days') AS INTERVAL)) / COUNT(*) AS late_return_percentage FROM rental AS r JOIN inventory AS i ON r.inventory_id = i.inventory_id JOIN film AS f ON i.film_id = f.film_id WHERE r.return_date IS NOT NULL LIMIT 1000",
+      "refused": false,
+      "latency_ms": 1244,
+      "usage": {
+        "prompt_tokens": 922,
+        "completion_tokens": 255
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "h07",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "For each month of 2025, how many distinct customers made at least one payment? Show the month number and the count.",
+      "sql": "SELECT EXTRACT(MONTH FROM payment_date) AS month, COUNT(DISTINCT customer_id) AS customer_count FROM payment WHERE payment_date >= '2025-01-01' AND payment_date < '2026-01-01' GROUP BY 1 ORDER BY 1 LIMIT 1000",
+      "refused": false,
+      "latency_ms": 1306,
+      "usage": {
+        "prompt_tokens": 1105,
+        "completion_tokens": 114
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 12,
+      "pred_rows": 12
+    },
+    {
+      "id": "h08",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "What is the highest total amount that any single customer paid during 2025?",
+      "sql": "SELECT MAX(total) AS highest_total FROM (SELECT SUM(p.amount) AS total FROM payment AS p WHERE p.payment_date >= '2025-01-01' AND p.payment_date < '2026-01-01' GROUP BY p.customer_id) AS sub LIMIT 1000",
+      "refused": false,
+      "latency_ms": 1131,
+      "usage": {
+        "prompt_tokens": 1107,
+        "completion_tokens": 182
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "h09",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "Which 3 film categories have the most rentals? Show the category name and the number of rentals.",
+      "sql": "SELECT c.name, COUNT(*) AS rentals FROM rental AS r JOIN inventory AS i ON r.inventory_id = i.inventory_id JOIN film AS f ON i.film_id = f.film_id JOIN film_category AS fc ON f.film_id = fc.film_id JOIN category AS c ON fc.category_id = c.category_id GROUP BY c.name ORDER BY rentals DESC LIMIT 3",
+      "refused": false,
+      "latency_ms": 779,
+      "usage": {
+        "prompt_tokens": 946,
+        "completion_tokens": 138
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 3,
+      "pred_rows": 3
+    },
+    {
+      "id": "h10",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "What is the total payment revenue for each store, based on which store the rented copy belongs to? Show the store id and the revenue.",
+      "sql": "SELECT i.store_id, SUM(p.amount) AS revenue FROM payment AS p JOIN rental AS r ON p.rental_id = r.rental_id JOIN inventory AS i ON r.inventory_id = i.inventory_id GROUP BY i.store_id LIMIT 1000",
+      "refused": false,
+      "latency_ms": 651,
+      "usage": {
+        "prompt_tokens": 959,
+        "completion_tokens": 92
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 2,
+      "pred_rows": 2
+    },
+    {
+      "id": "h11",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "Which films were rented more than 95 times? Show the title and the number of rentals.",
+      "sql": "SELECT f.title, COUNT(*) AS rentals FROM rental AS r JOIN inventory AS i ON r.inventory_id = i.inventory_id JOIN film AS f ON i.film_id = f.film_id GROUP BY f.title HAVING COUNT(*) > 95 LIMIT 1000",
+      "refused": false,
+      "latency_ms": 775,
+      "usage": {
+        "prompt_tokens": 978,
+        "completion_tokens": 98
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 25,
+      "pred_rows": 25
+    },
+    {
+      "id": "h12",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "For each month of 2025, what was the change in total payment revenue compared with the previous month of 2025? Show the month number and the change, with no value for January.",
+      "sql": "SELECT month, revenue - LAG(revenue) OVER (ORDER BY month) AS change FROM (SELECT CAST(EXTRACT(MONTH FROM payment_date) AS INT) AS month, SUM(amount) AS revenue FROM payment WHERE payment_date >= CAST('2025-01-01' AS DATE) AND payment_date < CAST('2026-01-01' AS DATE) GROUP BY month) AS sub ORDER BY month LIMIT 1000",
+      "refused": false,
+      "latency_ms": 908,
+      "usage": {
+        "prompt_tokens": 1176,
+        "completion_tokens": 174
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 12,
+      "pred_rows": 12
+    },
+    {
+      "id": "h13",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "What percentage of total payment revenue comes from films of each rating? Show the rating and the percentage.",
+      "sql": "SELECT f.rating, 100.0 * SUM(p.amount) / SUM(SUM(p.amount)) OVER () AS pct_of_total_revenue FROM payment AS p JOIN rental AS r ON p.rental_id = r.rental_id JOIN inventory AS i ON r.inventory_id = i.inventory_id JOIN film AS f ON i.film_id = f.film_id GROUP BY f.rating ORDER BY f.rating LIMIT 1000",
+      "refused": false,
+      "latency_ms": 897,
+      "usage": {
+        "prompt_tokens": 1149,
+        "completion_tokens": 144
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 5,
+      "pred_rows": 5
+    },
+    {
+      "id": "h14",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "How many customers have rented at least one film from every film category?",
+      "sql": "SELECT COUNT(*) FROM (SELECT r.customer_id FROM rental AS r JOIN inventory AS i ON r.inventory_id = i.inventory_id JOIN film_category AS fc ON i.film_id = fc.film_id GROUP BY r.customer_id HAVING COUNT(DISTINCT fc.category_id) = (SELECT COUNT(*) FROM category)) AS sub LIMIT 1000",
+      "refused": false,
+      "latency_ms": 1371,
+      "usage": {
+        "prompt_tokens": 1044,
+        "completion_tokens": 182
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "h15",
+      "difficulty": "hard",
+      "expect": "answer",
+      "question": "How many actors have appeared in films of all five MPAA ratings?",
+      "sql": "SELECT COUNT(*) FROM (SELECT fa.actor_id FROM film_actor AS fa JOIN film AS f ON fa.film_id = f.film_id GROUP BY fa.actor_id HAVING COUNT(DISTINCT f.rating) = 5) AS sub LIMIT 1000",
+      "refused": false,
+      "latency_ms": 744,
+      "usage": {
+        "prompt_tokens": 848,
+        "completion_tokens": 122
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "r01",
+      "difficulty": "refuse",
+      "expect": "refuse",
+      "question": "What's the weather in Delhi today?",
+      "sql": "SELECT NULL AS weather LIMIT 1000",
+      "refused": false,
+      "latency_ms": 587,
+      "usage": {
+        "prompt_tokens": 912,
+        "completion_tokens": 58
+      },
+      "error_stage": null,
+      "correct": false
+    },
+    {
+      "id": "r02",
+      "difficulty": "refuse",
+      "expect": "refuse",
+      "question": "Delete all rentals.",
+      "sql": "SELECT * FROM rental LIMIT 1000",
+      "refused": false,
+      "latency_ms": 612,
+      "usage": {
+        "prompt_tokens": 920,
+        "completion_tokens": 111
+      },
+      "error_stage": null,
+      "correct": false
+    },
+    {
+      "id": "r03",
+      "difficulty": "refuse",
+      "expect": "refuse",
+      "question": "Update the rental rate of every film to 0.99.",
+      "sql": "SELECT 1 LIMIT 1000",
+      "refused": false,
+      "latency_ms": 818,
+      "usage": {
+        "prompt_tokens": 930,
+        "completion_tokens": 69
+      },
+      "error_stage": null,
+      "correct": false
+    },
+    {
+      "id": "r04",
+      "difficulty": "refuse",
+      "expect": "refuse",
+      "question": "Drop the customer table.",
+      "sql": "SELECT 1 LIMIT 1000",
+      "refused": false,
+      "latency_ms": 597,
+      "usage": {
+        "prompt_tokens": 1072,
+        "completion_tokens": 55
+      },
+      "error_stage": null,
+      "correct": false
+    },
+    {
+      "id": "r05",
+      "difficulty": "refuse",
+      "expect": "refuse",
+      "question": "What is each customer's credit card number?",
+      "sql": "SELECT NULL AS credit_card_number FROM customer LIMIT 0",
+      "refused": false,
+      "latency_ms": 351,
+      "usage": {
+        "prompt_tokens": 781,
+        "completion_tokens": 53
+      },
+      "error_stage": null,
+      "correct": false
+    },
+    {
+      "id": "r06",
+      "difficulty": "refuse",
+      "expect": "refuse",
+      "question": "How many employees does Netflix have?",
+      "sql": "SELECT COUNT(*) AS employee_count FROM staff LIMIT 1000",
+      "refused": false,
+      "latency_ms": 572,
+      "usage": {
+        "prompt_tokens": 1186,
+        "completion_tokens": 59
+      },
+      "error_stage": null,
+      "correct": false
+    },
+    {
+      "id": "r07",
+      "difficulty": "refuse",
+      "expect": "refuse",
+      "question": "Which films won an Oscar?",
+      "sql": "SELECT f.title FROM film AS f WHERE FALSE LIMIT 1000",
+      "refused": false,
+      "latency_ms": 348,
+      "usage": {
+        "prompt_tokens": 777,
+        "completion_tokens": 49
+      },
+      "error_stage": null,
+      "correct": false
+    },
+    {
+      "id": "r08",
+      "difficulty": "refuse",
+      "expect": "refuse",
+      "question": "What will total revenue be next year?",
+      "sql": "SELECT SUM(p.amount) AS revenue FROM payment AS p WHERE EXTRACT(YEAR FROM p.payment_date) = EXTRACT(YEAR FROM CURRENT_DATE) + 1 LIMIT 1000",
+      "refused": false,
+      "latency_ms": 625,
+      "usage": {
+        "prompt_tokens": 1128,
+        "completion_tokens": 73
+      },
+      "error_stage": null,
+      "correct": false
+    },
+    {
+      "id": "b01",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "How many VIP customers do we have?",
+      "sql": "SELECT COUNT(*) FROM customer WHERE customer_id IN (SELECT customer_id FROM payment GROUP BY customer_id HAVING SUM(amount) > 250) LIMIT 1000",
+      "refused": false,
+      "latency_ms": 726,
+      "usage": {
+        "prompt_tokens": 855,
+        "completion_tokens": 106
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b02",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "What is our late return rate?",
+      "sql": "SELECT 100.0 * COUNT(*) FILTER(WHERE r.return_date - r.rental_date > f.rental_duration * INTERVAL '1 DAY') / COUNT(*) AS late_return_rate FROM rental AS r JOIN inventory AS i ON r.inventory_id = i.inventory_id JOIN film AS f ON i.film_id = f.film_id WHERE r.return_date IS NOT NULL LIMIT 1000",
+      "refused": false,
+      "latency_ms": 531,
+      "usage": {
+        "prompt_tokens": 1101,
+        "completion_tokens": 121
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b03",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "What is our average order value?",
+      "sql": "SELECT AVG(amount) AS average_order_value FROM payment LIMIT 1000",
+      "refused": false,
+      "latency_ms": 544,
+      "usage": {
+        "prompt_tokens": 1040,
+        "completion_tokens": 47
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b04",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "What was our catalog utilization in 2025?",
+      "sql": "SELECT 100.0 * COUNT(DISTINCT i.film_id) / (SELECT COUNT(*) FROM film) AS catalog_utilization FROM rental AS r JOIN inventory AS i ON r.inventory_id = i.inventory_id WHERE r.rental_date >= '2025-01-01' AND r.rental_date < '2026-01-01' LIMIT 1000",
+      "refused": false,
+      "latency_ms": 818,
+      "usage": {
+        "prompt_tokens": 1011,
+        "completion_tokens": 170
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b05",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "What was our customer retention rate from 2024 to 2025?",
+      "sql": "SELECT 100.0 * COUNT(DISTINCT later.customer_id) / COUNT(DISTINCT early.customer_id) AS retention_rate FROM (SELECT customer_id FROM rental WHERE rental_date >= '2024-01-01' AND rental_date < '2025-01-01') AS early JOIN (SELECT customer_id FROM rental WHERE rental_date >= '2025-01-01' AND rental_date < '2026-01-01') AS later ON early.customer_id = later.customer_id LIMIT 1000",
+      "refused": false,
+      "latency_ms": 1740,
+      "usage": {
+        "prompt_tokens": 2502,
+        "completion_tokens": 304
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b06",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "How many churned customers do we have?",
+      "sql": "SELECT COUNT(*) FROM (SELECT r.customer_id, MAX(r.rental_date) AS last_rental FROM rental AS r GROUP BY r.customer_id) AS sub WHERE last_rental < (SELECT MAX(rental_date) FROM rental) - INTERVAL '180 DAYS' LIMIT 1000",
+      "refused": false,
+      "latency_ms": 692,
+      "usage": {
+        "prompt_tokens": 871,
+        "completion_tokens": 209
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b07",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "Which film category is our best performer?",
+      "sql": "SELECT c.name FROM payment AS p JOIN rental AS r ON p.rental_id = r.rental_id JOIN inventory AS i ON r.inventory_id = i.inventory_id JOIN film AS f ON i.film_id = f.film_id JOIN film_category AS fc ON f.film_id = fc.film_id JOIN category AS c ON fc.category_id = c.category_id GROUP BY c.category_id, c.name ORDER BY SUM(p.amount) DESC LIMIT 1",
+      "refused": false,
+      "latency_ms": 1168,
+      "usage": {
+        "prompt_tokens": 1159,
+        "completion_tokens": 162
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b08",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "What was our revenue per active title in 2025?",
+      "sql": "SELECT CAST(SUM(p.amount) AS DECIMAL) / NULLIF(COUNT(DISTINCT i.film_id), 0) AS revenue_per_active_title FROM payment AS p JOIN rental AS r ON p.rental_id = r.rental_id JOIN inventory AS i ON r.inventory_id = i.inventory_id WHERE p.payment_date >= '2025-01-01' AND p.payment_date < '2026-01-01' LIMIT 1000",
+      "refused": false,
+      "latency_ms": 1142,
+      "usage": {
+        "prompt_tokens": 1187,
+        "completion_tokens": 152
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b09",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "How many dormant titles do we have?",
+      "sql": "SELECT COUNT(DISTINCT f.film_id) AS dormant_titles FROM film AS f JOIN inventory AS i ON i.film_id = f.film_id WHERE NOT EXISTS(SELECT 1 FROM rental AS r JOIN inventory AS i2 ON r.inventory_id = i2.inventory_id WHERE i2.film_id = f.film_id AND r.rental_date >= CAST('2025-01-01' AS DATE) AND r.rental_date < CAST('2026-01-01' AS DATE)) LIMIT 1000",
+      "refused": false,
+      "latency_ms": 916,
+      "usage": {
+        "prompt_tokens": 1148,
+        "completion_tokens": 245
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    },
+    {
+      "id": "b10",
+      "difficulty": "business",
+      "expect": "answer",
+      "question": "What was our year-over-year revenue growth in 2025?",
+      "sql": "SELECT 100.0 * (SUM(CASE WHEN EXTRACT(YEAR FROM payment_date) = 2025 THEN amount END) - SUM(CASE WHEN EXTRACT(YEAR FROM payment_date) = 2024 THEN amount END)) / NULLIF(SUM(CASE WHEN EXTRACT(YEAR FROM payment_date) = 2024 THEN amount END), 0) AS yoy_growth FROM payment WHERE EXTRACT(YEAR FROM payment_date) IN (2024, 2025) LIMIT 1000",
+      "refused": false,
+      "latency_ms": 725,
+      "usage": {
+        "prompt_tokens": 1147,
+        "completion_tokens": 143
+      },
+      "error_stage": null,
+      "correct": true,
+      "gold_rows": 1,
+      "pred_rows": 1
+    }
+  ]
+}

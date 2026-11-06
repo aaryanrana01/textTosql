@@ -1,5 +1,7 @@
 # Natural-Language Analytics Engine (Text-to-SQL)
 
+![CI](https://github.com/aaryanrana01/textTosql/actions/workflows/ci.yml/badge.svg)
+
 Ask questions about a business database in plain English, and get back correct, safe SQL, its results, and a chart.
 
 The project focuses on what makes text-to-SQL reliable in production, not just on calling an LLM:

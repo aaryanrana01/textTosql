@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     app_user_password: str
     db_host: str = "localhost"
     db_port: int = 5432
+    db_sslmode: str = "prefer"   # "require" on hosted databases such as Neon, which accept only SSL
 
     # LLM
     llm_api_key: str
@@ -29,7 +30,7 @@ class Settings(BaseSettings):
     schema_retrieval: bool = True   # False = send every table (for comparison runs)
     retrieval_top_k: int = 4        # tables retrieved before join-path expansion
     few_shot_k: int = 3             # similar worked examples per prompt; 0 turns them off
-    
+
     # Protection for the deployed service
     internal_api_token: str = ""   # when set, /generate requires it in the X-Internal-Token header
     daily_token_budget: int = 0    # stop answering once this many LLM tokens were used today (0 = no limit)

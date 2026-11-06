@@ -1,25 +1,40 @@
+import json
+import logging
 from decimal import Decimal
 from typing import Any
 
+from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
 from .config import settings
-import json
 
-import logging
-
-from psycopg.types.json import Jsonb
-
+logger = logging.getLogger(__name__)
 
 MAX_ROWS = 200
 
-pool = AsyncConnectionPool(
-    conninfo=(
+
+def _conninfo(user: str, password: str) -> str:
+    """Connection settings for one database role. sslmode comes from settings:
+    'prefer' locally (Docker has no SSL), 'require' on hosted databases such as Neon."""
+    return (
         f"host={settings.db_host} port={settings.db_port} dbname={settings.postgres_db} "
-        f"user=reader password={settings.reader_password}"
-    ),
+        f"sslmode={settings.db_sslmode} user={user} password={password}"
+    )
+
+
+# Runs generated SQL as the read-only reader role.
+pool = AsyncConnectionPool(
+    conninfo=_conninfo("reader", settings.reader_password),
     min_size=1,
     max_size=5,
+    open=False,
+)
+
+# A separate, small pool for the app_user role, which can write logs but never runs generated SQL.
+app_pool = AsyncConnectionPool(
+    conninfo=_conninfo("app_user", settings.app_user_password),
+    min_size=1,
+    max_size=2,
     open=False,
 )
 
@@ -49,23 +64,10 @@ async def explain_cost(sql: str) -> float:
     return float(plan[0]["Plan"]["Total Cost"])
 
 
-
-logger = logging.getLogger(__name__)
-
-# A separate, small pool for the app_user role, which can write logs but never runs generated SQL.
-app_pool = AsyncConnectionPool(
-    conninfo=(
-        f"host={settings.db_host} port={settings.db_port} dbname={settings.postgres_db} "
-        f"user=app_user password={settings.app_user_password}"
-    ),
-    min_size=1,
-    max_size=2,
-    open=False,
-)
-
 LOG_FIELDS = (
     "question", "final_sql", "status", "error_stage", "error", "attempts", "attempt_errors",
-    "row_count", "truncated", "query_cost", "latency_ms", "prompt_tokens", "completion_tokens", "model","cache_hit",
+    "row_count", "truncated", "query_cost", "latency_ms", "prompt_tokens", "completion_tokens", "model",
+    "cache_hit",
 )
 LOG_SQL = (
     f"INSERT INTO app.request_log ({', '.join(LOG_FIELDS)}) "
@@ -92,4 +94,5 @@ async def tokens_used_today() -> int:
             "SELECT coalesce(sum(coalesce(prompt_tokens, 0) + coalesce(completion_tokens, 0)), 0) "
             "FROM app.request_log WHERE created_at >= date_trunc('day', now())"
         )
-        return int((await cur.fetchone())[0])
+        row = await cur.fetchone()
+    return int(row[0])

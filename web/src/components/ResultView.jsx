@@ -39,6 +39,7 @@ function Meta({ result }) {
   const parts = [];
   if (result.latency_ms != null) parts.push(`${(result.latency_ms / 1000).toFixed(1)} s`);
   if (result.attempts > 1) parts.push(`self-corrected after ${result.attempts} attempts`);
+  if (result.cache_hit) parts.push('cached answer, no LLM call');
   const tokens = (result.usage?.prompt_tokens ?? 0) + (result.usage?.completion_tokens ?? 0);
   if (tokens) parts.push(`${tokens.toLocaleString()} tokens`);
 

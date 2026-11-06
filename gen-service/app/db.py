@@ -65,7 +65,7 @@ app_pool = AsyncConnectionPool(
 
 LOG_FIELDS = (
     "question", "final_sql", "status", "error_stage", "error", "attempts", "attempt_errors",
-    "row_count", "truncated", "query_cost", "latency_ms", "prompt_tokens", "completion_tokens", "model",
+    "row_count", "truncated", "query_cost", "latency_ms", "prompt_tokens", "completion_tokens", "model","cache_hit",
 )
 LOG_SQL = (
     f"INSERT INTO app.request_log ({', '.join(LOG_FIELDS)}) "
@@ -77,6 +77,7 @@ async def log_request(entry: dict) -> None:
     """Record one request. Logging must never break a user's request, so failures are only warned about."""
     params = {f: entry.get(f) for f in LOG_FIELDS}
     params["attempt_errors"] = Jsonb(params["attempt_errors"] or [])
+    params["cache_hit"] = bool(params["cache_hit"])  # the column is NOT NULL; failed requests never hit the cache
     try:
         async with app_pool.connection() as conn:
             await conn.execute(LOG_SQL, params)

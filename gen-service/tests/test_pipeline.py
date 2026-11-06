@@ -13,11 +13,19 @@ USAGE = {"prompt_tokens": 10, "completion_tokens": 5}
 
 @pytest.fixture(autouse=True)
 def fake_context(monkeypatch):
-    """Replace retrieval so these tests need no database, embedding model or LLM."""
+    """Replace retrieval and the cache so these tests need no database, Redis, embedding model or LLM."""
     async def build_context(question):
         return PromptContext(schema_text="film: The film catalog.\n  film_id integer PK", tables=["film"])
 
+    async def no_cache_get(question):
+        return None
+
+    async def no_cache_put(question, entry):
+        return None
+
     monkeypatch.setattr(pipeline, "build_context", build_context)
+    monkeypatch.setattr(pipeline.cache, "get", no_cache_get)
+    monkeypatch.setattr(pipeline.cache, "put", no_cache_put)
 
 
 def fake_llm(outputs):

@@ -63,7 +63,7 @@ def results_match(gold, pred):
 
 
 def ask_service(question):
-    body = json.dumps({"question": question}).encode()
+    body = json.dumps({"question": question, "use_cache": False}).encode()
     for attempt in range(2):
         req = urllib.request.Request(SERVICE_URL, data=body, headers={"Content-Type": "application/json"})
         try:

@@ -34,5 +34,9 @@ class Settings(BaseSettings):
     internal_api_token: str = ""   # when set, /generate requires it in the X-Internal-Token header
     daily_token_budget: int = 0    # stop answering once this many LLM tokens were used today (0 = no limit)
 
+    # Answer cache
+    redis_url: str = ""                # empty disables caching (tests, CI)
+    cache_ttl_seconds: int = 86_400    # cached SQL is reused for up to 24 hours
+
 
 settings = Settings()

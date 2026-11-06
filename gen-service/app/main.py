@@ -8,7 +8,7 @@ import openai
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from . import db, pipeline, retrieval
+from . import cache, db, pipeline, retrieval
 from .config import settings
 
 
@@ -18,6 +18,7 @@ async def lifespan(app: FastAPI):
     await db.app_pool.open()
     await asyncio.to_thread(retrieval.get_model)  # load the embedding model before the first request
     yield
+    await cache.close()
     await db.app_pool.close()
     await db.pool.close()
 
@@ -27,6 +28,7 @@ app = FastAPI(title="Text-to-SQL generation service", lifespan=lifespan)
 
 class GenerateRequest(BaseModel):
     question: str = Field(min_length=3, max_length=500)
+    use_cache: bool = True  # evaluations turn this off so they always measure the model, not the cache
 
 
 class AttemptOut(BaseModel):
@@ -46,6 +48,7 @@ class GenerateResponse(BaseModel):
     refused: bool = False
     refusal_category: str | None = None
     refusal_reason: str | None = None
+    cache_hit: bool = False
     columns: list[str] = []
     rows: list[list[Any]] = []
     row_count: int = 0
@@ -96,7 +99,7 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks):
             )
 
     try:
-        res = await pipeline.answer(req.question)
+        res = await pipeline.answer(req.question, use_cache=req.use_cache)
     except openai.RateLimitError as exc:
         await _log_llm_failure(req.question, start, f"rate limit: {exc.message}")
         raise HTTPException(status_code=429, detail=f"LLM rate limit: {exc.message}")
@@ -132,6 +135,7 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks):
         "prompt_tokens": res.usage["prompt_tokens"],
         "completion_tokens": res.usage["completion_tokens"],
         "model": settings.llm_model,
+        "cache_hit": res.cache_hit,
     })
 
     return GenerateResponse(
@@ -145,6 +149,7 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks):
         refused=res.refused,
         refusal_category=res.refusal_category,
         refusal_reason=res.refusal_reason,
+        cache_hit=res.cache_hit,
         columns=res.columns,
         rows=res.rows,
         row_count=len(res.rows),

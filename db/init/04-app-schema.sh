@@ -14,6 +14,7 @@ CREATE TABLE app.request_log (
     error             text,
     attempts          int NOT NULL DEFAULT 1,
     attempt_errors    jsonb NOT NULL DEFAULT '[]',
+    cache_hit         boolean NOT NULL DEFAULT false,
     row_count         int,
     truncated         boolean,
     query_cost        double precision,

@@ -6,5 +6,12 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql
       - ./db/init:/docker-entrypoint-initdb.d
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    # A cache, not a database: no persistence, bounded memory, least-recently-used entries evicted first.
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+
 volumes:
   pgdata:

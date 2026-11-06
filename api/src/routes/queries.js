@@ -38,6 +38,7 @@ function toPublicResult(r) {
     schema_tables: r.schema_tables ?? [],
     latency_ms: r.latency_ms ?? null,
     usage: r.usage ?? {},
+    cache_hit: r.cache_hit ?? false,
   };
 }
 

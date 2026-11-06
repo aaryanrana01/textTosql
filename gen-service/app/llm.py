@@ -1,6 +1,6 @@
 import json
 
-from openai import AsyncOpenAI
+from .tracing import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 from .config import settings

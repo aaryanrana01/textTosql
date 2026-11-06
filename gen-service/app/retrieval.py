@@ -10,6 +10,7 @@ from .config import settings
 from .prompt import PromptContext
 from .schema_text import CATALOG
 from .semantic import match_terms
+from .tracing import observe, update_current_span
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,16 @@ def embed_query(text: str) -> str:
     return to_vector_literal(next(iter(get_model().query_embed([text]))))
 
 
+@observe(name="retrieve-context", capture_output=False)
+async def build_context(question: str) -> PromptContext:
+    ...  # (everything inside stays the same, except the last line)
+
+    update_current_span(output={
+       "tables": sorted(tables), "terms": [t["name"] for t in terms], "examples": len(examples),
+    })
+    return PromptContext(schema_text=CATALOG.render(tables), tables=sorted(tables), terms=terms, examples=examples)
+
+    
 async def build_context(question: str) -> PromptContext:
     terms = match_terms(question)
     tables = set(CATALOG.table_names)

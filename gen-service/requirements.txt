@@ -7,3 +7,4 @@ sqlglot
 fastembed
 pyyaml
 redis
+langfuse

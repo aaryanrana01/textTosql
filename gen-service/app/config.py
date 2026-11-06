@@ -38,5 +38,10 @@ class Settings(BaseSettings):
     redis_url: str = ""                # empty disables caching (tests, CI)
     cache_ttl_seconds: int = 86_400    # cached SQL is reused for up to 24 hours
 
+    # Tracing (optional): all three must be set for tracing to turn on
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = "https://cloud.langfuse.com"
+
 
 settings = Settings()

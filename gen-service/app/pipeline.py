@@ -1,5 +1,5 @@
 """The core pipeline: intent check -> cache -> prompt context -> SQL or refusal -> safety gates -> results,
-with a self-correcting retry loop."""
+with a self-correcting retry loop. Each step is traced when Langfuse is configured."""
 import logging
 from dataclasses import dataclass, field
 from typing import Any
@@ -12,6 +12,7 @@ from .guard import check_intent
 from .llm import generate_sql
 from .prompt import build_system_prompt
 from .retrieval import build_context
+from .tracing import observe, update_current_span
 from .validate import ValidationError, validate_sql
 
 logger = logging.getLogger(__name__)
@@ -57,6 +58,7 @@ class PipelineResult:
     usage: dict = field(default_factory=lambda: {"prompt_tokens": 0, "completion_tokens": 0})
 
 
+@observe(name="gates-and-execute", capture_output=False)
 async def _gate_and_execute(raw_sql: str):
     """Run one query through every safety gate, then execute it. Raises StageError on failure."""
     try:
@@ -76,9 +78,12 @@ async def _gate_and_execute(raw_sql: str):
         columns, rows, truncated = await db.run_query(sql)
     except psycopg.Error as exc:
         raise StageError("execution", str(exc).strip()) from exc
+    # Only a summary is traced, never the rows themselves.
+    update_current_span(output={"cost": cost, "row_count": len(rows), "truncated": truncated})
     return sql, cost, columns, rows, truncated
 
 
+@observe(name="cache-lookup", capture_input=False)
 async def _answer_from_cache(res: PipelineResult, question: str) -> bool:
     """Fill `res` from the cache if possible. Cached SQL is re-validated and re-run, never trusted blindly."""
     cached = await cache.get(question)
@@ -104,7 +109,23 @@ async def _answer_from_cache(res: PipelineResult, question: str) -> bool:
     return True
 
 
+@observe(name="answer-question", capture_output=False)
 async def answer(question: str, use_cache: bool = True) -> PipelineResult:
+    res = await _answer(question, use_cache)
+    # The root span's output becomes the trace output: a compact outcome, not the full result.
+    update_current_span(output={
+        "status": "refused" if res.refused else ("error" if res.error else "ok"),
+        "sql": res.sql,
+        "row_count": len(res.rows),
+        "cache_hit": res.cache_hit,
+        "attempts": len(res.attempts),
+        "error_stage": res.error_stage,
+        "refusal_category": res.refusal_category,
+    })
+    return res
+
+
+async def _answer(question: str, use_cache: bool) -> PipelineResult:
     res = PipelineResult(question=question)
 
     # 1. Deterministic check: requests to change data are refused before any LLM call.

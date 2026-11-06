@@ -8,7 +8,7 @@ import openai
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from . import cache, db, pipeline, retrieval
+from . import cache, db, pipeline, retrieval, tracing
 from .config import settings
 
 
@@ -18,6 +18,7 @@ async def lifespan(app: FastAPI):
     await db.app_pool.open()
     await asyncio.to_thread(retrieval.get_model)  # load the embedding model before the first request
     yield
+    tracing.shutdown()
     await cache.close()
     await db.app_pool.close()
     await db.pool.close()

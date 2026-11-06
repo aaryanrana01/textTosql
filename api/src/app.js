@@ -14,7 +14,7 @@ export function createApp() {
   app.use(helmet());
   app.use(cors({ origin: config.CORS_ORIGIN }));
   app.use(express.json({ limit: '10kb' }));
-  app.use(pinoHttp({ redact: ['req.headers.authorization'] }));
+  app.use(pinoHttp({ level: process.env.LOG_LEVEL ?? 'info', redact: ['req.headers.authorization'] }));
 
   app.get('/api/health', async (_req, res) => {
     const checks = { database: false, generation_service: false };

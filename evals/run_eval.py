@@ -146,25 +146,29 @@ def summarize(results):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", default=str(ROOT / "evals" / "dataset.jsonl"), help="path to a .jsonl question set")
     parser.add_argument("--label", default="run", help="name for this run, e.g. baseline")
+    parser.add_argument("--dataset", default=str(ROOT / "evals" / "dataset.jsonl"), help="path to a .jsonl question set")
     parser.add_argument("--limit", type=int, help="only run the first N questions")
     parser.add_argument("--only", help="comma-separated id prefixes to run, e.g. b or h,b")
     parser.add_argument("--sleep", type=float, default=8.0, help="seconds between questions")
+    parser.add_argument("--min-accuracy", type=float, help="exit with an error if answerable accuracy is below this percentage (for CI)")
     args = parser.parse_args()
 
-    items = [json.loads(line) for line in Path(args.dataset).read_text().splitlines() if line.strip()]   
+    items = [json.loads(line) for line in Path(args.dataset).read_text().splitlines() if line.strip()]
     if args.only:
         prefixes = tuple(p.strip() for p in args.only.split(","))
         items = [i for i in items if i["id"].startswith(prefixes)]
     if args.limit:
         items = items[: args.limit]
 
-    results = []
+    results, summary = [], None
     try:
         with connect() as conn:
             for n, item in enumerate(items, 1):
                 resp, err = ask_service(item["question"])
+                if err and err.startswith("HTTP 429"):
+                    print(f"\nRate limit still exceeded at {item['id']}; stopping so the remaining questions aren't scored as failures.")
+                    break
                 rec = score(conn, item, resp, err)
                 results.append(rec)
                 mark = "PASS" if rec["correct"] else "FAIL"
@@ -186,6 +190,14 @@ def main():
             print("\n=== Summary ===")
             print(json.dumps(summary, indent=2))
             print(f"Saved to {out_file}")
+
+    if args.min_accuracy is not None:
+        complete = summary is not None and len(results) == len(items)
+        if not complete or summary["accuracy"] < args.min_accuracy:
+            got = f"{summary['accuracy']}%" if summary else "no results"
+            print(f"\nAccuracy gate FAILED: required {args.min_accuracy}%, got {got} ({len(results)}/{len(items)} questions completed)")
+            sys.exit(1)
+        print(f"\nAccuracy gate passed: {summary['accuracy']}% >= {args.min_accuracy}%")
 
 if __name__ == "__main__":
     main()

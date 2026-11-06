@@ -1,0 +1,64 @@
+name: Accuracy gate
+
+# Manual only: each run spends LLM tokens.
+on: workflow_dispatch
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Create .env (LLM key from repository secrets)
+        run: |
+          {
+            echo "POSTGRES_USER=postgres"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+            echo "POSTGRES_DB=pagila"
+            echo "READER_PASSWORD=$(openssl rand -hex 16)"
+            echo "APP_USER_PASSWORD=$(openssl rand -hex 16)"
+            echo "API_USER_PASSWORD=$(openssl rand -hex 16)"
+            echo "JWT_SECRET=$(openssl rand -hex 32)"
+            echo "LLM_API_KEY=${{ secrets.GROQ_API_KEY }}"
+            echo "LLM_BASE_URL=https://api.groq.com/openai/v1"
+            echo "LLM_MODEL=openai/gpt-oss-120b"
+            echo "LLM_REASONING_EFFORT=low"
+          } > .env
+
+      - name: Start PostgreSQL
+        run: docker compose up -d
+
+      - name: Wait for database setup to finish
+        run: |
+          for i in $(seq 1 90); do
+            if docker compose exec -T db psql -U postgres -d pagila -tAc "SELECT 1 FROM app.queries LIMIT 1" >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          docker compose logs db
+          exit 1
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: gen-service/requirements*.txt
+
+      - run: pip install -r gen-service/requirements-dev.txt python-dotenv
+      - run: python scripts/build_indexes.py
+
+      - name: Start the generation service
+        working-directory: gen-service
+        run: |
+          nohup uvicorn app.main:app --port 8000 > uvicorn.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf localhost:8000/health && exit 0
+            sleep 2
+          done
+          cat uvicorn.log
+          exit 1
+
+      - name: Accuracy gate (12 questions across every difficulty, business terms and refusals)
+        run: >
+          python evals/run_eval.py --label ci --sleep 12 --min-accuracy 90
+          --only e01,e05,m02,m07,m10,m13,h01,h05,h07,h12,b01,b07,r02,r06

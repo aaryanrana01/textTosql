@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Create .env for CI (random passwords; the LLM is never called by these tests)
+        run: |
+          {
+            echo "POSTGRES_USER=postgres"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+            echo "POSTGRES_DB=pagila"
+            echo "READER_PASSWORD=$(openssl rand -hex 16)"
+            echo "APP_USER_PASSWORD=$(openssl rand -hex 16)"
+            echo "API_USER_PASSWORD=$(openssl rand -hex 16)"
+            echo "JWT_SECRET=$(openssl rand -hex 32)"
+            echo "LLM_API_KEY=not-used-by-tests"
+            echo "LLM_BASE_URL=https://api.groq.com/openai/v1"
+            echo "LLM_MODEL=openai/gpt-oss-120b"
+          } > .env
+
+      - name: Start PostgreSQL with the same setup scripts as local development
+        run: docker compose up -d
+
+      - name: Wait for database setup to finish
+        run: |
+          for i in $(seq 1 90); do
+            if docker compose exec -T db psql -U postgres -d pagila -tAc "SELECT 1 FROM app.queries LIMIT 1" >/dev/null 2>&1; then
+              echo "Database ready"; exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs db
+          exit 1
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: gen-service/requirements*.txt
+
+      - name: Install Python dependencies
+        run: pip install -r gen-service/requirements-dev.txt python-dotenv
+
+      - name: Build vector indexes
+        run: python scripts/build_indexes.py
+
+      - name: Python tests
+        working-directory: gen-service
+        run: pytest -q
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: "**/package-lock.json"
+
+      - name: API tests
+        working-directory: api
+        run: npm ci && npm test
+
+      - name: UI tests and production build
+        working-directory: web
+        run: npm ci && npm test && npm run build

@@ -10,6 +10,18 @@ import { errorHandler, notFound } from './errors.js';
 import { authRouter } from './routes/auth.js';
 import { queryRouter } from './routes/queries.js';
 
+// A free-tier generation service sleeps when idle. The hosting platform only finishes waking it for a request
+// that WAITS until it is up; the quick health check below gives up after 3 seconds, too early to wake it.
+// So when that check fails, one patient request is sent in the background (at most one at a time).
+let wakeInFlight = null;
+
+function wakeGenerationService() {
+  if (wakeInFlight) return;
+  wakeInFlight = fetch(`${config.GEN_SERVICE_URL}/health`, { signal: AbortSignal.timeout(180_000) })
+    .catch(() => { /* still asleep or failing; the next health check will try again */ })
+    .finally(() => { wakeInFlight = null; });
+}
+
 export function createApp() {
   const app = express();
   app.set('trust proxy', config.TRUST_PROXY); // 1 behind a hosting provider's proxy, so rate limits see real client IPs
@@ -24,7 +36,7 @@ export function createApp() {
     res.json({ status: 'ok' });
   });
 
-  // Full health: database and generation service. Calling it also wakes a sleeping generation service.
+  // Full health: database and generation service. The page polls this while it shows "Waking up the demo…".
   app.get('/api/health', async (_req, res) => {
     const checks = { database: false, generation_service: false };
     try {
@@ -35,6 +47,7 @@ export function createApp() {
       const r = await fetch(`${config.GEN_SERVICE_URL}/health`, { signal: AbortSignal.timeout(3000) });
       checks.generation_service = r.ok;
     } catch { /* reported as false */ }
+    if (!checks.generation_service) wakeGenerationService();
     const healthy = Object.values(checks).every(Boolean);
     res.status(healthy ? 200 : 503).json({ status: healthy ? 'ok' : 'degraded', ...checks });
   });

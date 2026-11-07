@@ -13,6 +13,7 @@ Every evaluation run of the text-to-SQL pipeline, what changed, and its measured
 - **Model:** Groq `openai/gpt-oss-120b`, reasoning effort `low`, temperature 0.
 - Every reference query is verified by `evals/check_dataset.py` before use.
 - **Evaluations bypass the answer cache** (`use_cache: false`), so they always measure the model, never cached answers.
+- **Earlier phases were measured by running that phase's exact code** from its git commit (a `git worktree`), with that phase's own schema index.
 
 ## How scoring works
 - **Execution accuracy:** a question passes when the model's SQL returns the same data as the reference SQL. Both are run directly against the database, with no row cap.
@@ -28,14 +29,15 @@ Every evaluation run of the text-to-SQL pipeline, what changed, and its measured
 | baseline | 1 | 48/50 (96%) | 2/10 (20%) | 0/8 | 0 | 691 ms | 774 + 104 | Full schema in prompt |
 | gates | 2 | 48/50 (96%) | 2/10 (20%) | 0/8 | 0 | not saved | not saved | + 6 validation gates and a cost check |
 | retry | 3 | 49/50 (98%) | 2/10 (20%) | 0/8 | 0 | 711 ms | 814 + 121 | + self-correcting retry loop |
-| retrieval | 4 | pending | pending | pending | pending | pending | pending | + table descriptions, pgvector schema retrieval |
+| retrieval | 4 | 49/50 (98%) | 1/10 (10%) | 0/8 | 0 | 709 ms | 736 + 113 | + table descriptions, pgvector schema retrieval |
 | semantic | 5 | 50/50 (100%) | 10/10 (100%) | 0/8 | 0 | 731 ms | 988 + 106 | + semantic layer (14 terms), few-shot examples |
 | refusal | 6 | **50/50 (100%)** | **10/10 (100%)** | **8/8 (100%)** | **0** | 723 ms | 1,089 + 105 | + deterministic intent check and model refusal |
 
 **What the ablation shows:**
 - **The safety gates cost no accuracy:** identical results question by question.
 - **The retry loop fixed a detectable SQL error** (h13), but not a logically wrong query (h06).
-- **The semantic layer and examples produced the accuracy gains:** business 2/10 → 10/10, and h06 fixed, most likely by example x12, which shows the `return_date IS NOT NULL` pattern.
+- **Retrieval kept core accuracy at 98% while sending ~10% fewer prompt tokens** than the retry run, even though every retrieved table now carries a description. h06 first passed in this run, most likely thanks to the column descriptions.
+- **The semantic layer produced the business-language gains: 1/10 → 10/10.** Without it, the model silently invented plausible but wrong definitions (see the retrieval notes).
 - **Refusal added 8/8 correct refusals with zero false refusals and zero accuracy loss.** Its cost is about 100 extra prompt tokens.
 - **Overall cost of the improvements:** prompts grew about 40% (774 → 1,089 tokens) for +4 points core, +80 points business and +100 points refusal accuracy, with latency essentially unchanged.
 
@@ -103,13 +105,22 @@ The full schema with descriptions is ~1,133 tokens; a typical retrieved schema i
 - **h06 still wrong:** nothing for a retry loop to react to.
 - A retried question costs roughly double (h13: 2,084 tokens, 1.7 s).
 
-### retrieval (accuracy run pending)
+### retrieval
+- **Measured with Phase 4's exact code and its own schema index** (rebuilt from Phase 4's table descriptions).
+- **Core:** 49/50. Hard questions 15/15, with h06 passing for the first time. The one failure, m14 (rentals per staff member), was a logic difference from the reference, not an error.
+- **Business 1/10, and the failures are the key finding:** with no definitions available, the model invented plausible ones and answered confidently:
+  - "VIP" was answered as nothing at all (`WHERE FALSE`).
+  - "churned" used an account-status flag instead of the 180-day rule.
+  - "best performer" counted films instead of revenue.
+  - "dormant" meant never rented, instead of not rented recently.
+
+  These answers look reasonable but are silently wrong, which is why the semantic layer exists.
 - **Credential columns** (`staff.password`, `staff.username`) are made unreadable to the query role with column-level grants, so they disappear from the schema and every prompt.
 - **A schema-extraction bug, found by the recall check:** the partitioned `payment` table's foreign keys were defined on its partitions and lost. Earlier runs had no join information for `payment`; the model had been guessing those joins from column names. Fixed, with a regression test.
 
 ### semantic
 - **Business 10/10:** each glossary term's definition is applied exactly.
-- **h06 fixed** without a dedicated change. The few-shot example x12 demonstrates the missing filter pattern.
+- **Core 50/50:** m14 also passed in this run.
 
 ### refusal
 - **Intent check:** write requests at the start of a question are refused before any LLM call (0 tokens, ~0 ms).

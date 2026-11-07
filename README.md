@@ -12,15 +12,13 @@ The project focuses on what makes text-to-SQL reliable in production, not just o
 - **Retrieval** of relevant tables, business definitions and worked examples.
 - **Self-correction** from database errors, and **explicit refusal** of questions it shouldn't answer.
 - **Evaluation:** a development benchmark, an ablation of every phase, and a frozen held-out test set.
-- **Production concerns:** answer caching, tracing, rate limits, a daily cost budget, automated tests and CI, a live deployment, and an MCP server for AI assistants.
-
-> **Status:** Phases 1–11 and 13 complete; load testing (12) and the demo video (14) in progress. See [Roadmap](#roadmap).
+- **Production concerns:** answer caching, tracing, rate limits, a daily cost budget, automated tests and CI, load testing, a live deployment, and an MCP server for AI assistants.
 
 ---
 
 ## Results
 
-Full details in [`evals/RESULTS.md`](evals/RESULTS.md).
+Full details in [`evals/RESULTS.md`](evals/RESULTS.md) and [`loadtest/README.md`](loadtest/README.md).
 
 **Held-out test set:** 20 questions, written after development and frozen before its first run.
 
@@ -49,9 +47,17 @@ Full details in [`evals/RESULTS.md`](evals/RESULTS.md).
 - **Business terms only partly,** because the glossary matches phrases, not meanings.
 - Of the three held-out failures, one is a genuine error ("stopped renting" read as "never rented"), one is a refusal of an undefined term, and one is a correct answer on a different scale.
 
+**Performance** (k6 load test of the production container on 1 CPU / 512 MB):
+
+| Rate (per scenario) | Refusals p50 / p95 | Cached answers p50 / p95 | Errors |
+|---|---|---|---|
+| **5 req/s** | **7 ms / 13 ms** | **108 ms / 172 ms** | **0** |
+| 10 req/s | 10 ms / 23 ms | 4.5 s / 7.0 s (queueing: beyond one CPU's capacity) | 0 |
+
 **Also measured:**
 - **Schema retrieval recall:** 60/60. Every question receives every table it needs, with ~5 of 15 tables per prompt.
 - **178 automated tests:** 154 Python (including an 18-case SQL attack suite), 11 API, 8 UI and 5 MCP, all run by CI on every push.
+- **An accuracy gate on GitHub Actions** (14 benchmark questions on a fresh machine, at least 90% required) passes.
 
 ---
 
@@ -132,7 +138,7 @@ The database's admin account is never used by the running application.
 - Render's free services sleep after 15 minutes idle. A sleeping service **wakes reliably when a browser visits it, but not when another service calls it** (the wake-up page is designed for browsers).
 - The first design ran Express and the generation service as two services, so the first question after a quiet period failed: Express couldn't wake the sleeping generation service.
 - Running both in **one container** ([`Dockerfile`](Dockerfile), [`start.sh`](start.sh)) means the visitor's browser wakes everything at once. It also halves the free hours used, and takes the generation service off the public internet.
-- Before deploying, the container was tested locally under the same 512 MB memory limit: it uses about **456 MB**.
+- Before deploying, the container was tested locally under the same 512 MB memory limit: it uses about **456 MB** idle and about **485 MB** under load.
 
 **Infrastructure as code:** the service is defined in [`render.yaml`](render.yaml), a Render Blueprint.
 - Secrets are never stored in the file: Render asks for them, or generates them (the internal token and the JWT secret).
@@ -154,7 +160,7 @@ The database's admin account is never used by the running application.
 | UI | React 19, Vite, Tailwind CSS v4, TanStack Query, Recharts |
 | AI-assistant access | MCP Python SDK (v2) |
 | Database | PostgreSQL 18 + pgvector (Docker locally, Neon in production); Pagila sample data |
-| Testing and CI | pytest, Vitest + Supertest, GitHub Actions; custom evaluation harness |
+| Testing and CI | pytest, Vitest + Supertest, GitHub Actions, k6; custom evaluation harness |
 | Hosting | Docker, Render (Blueprint), Neon, Upstash |
 
 ---
@@ -179,6 +185,7 @@ textTosql/
 ├── api/                        # Express API (also serves the built UI in production); 11 tests
 ├── web/                        # React UI; 8 tests
 ├── mcp-server/                 # MCP server for AI assistants; 5 tests
+├── loadtest/                   # k6 load test and its results
 ├── evals/
 │   ├── dataset.jsonl           # development set (68)
 │   ├── holdout.jsonl           # held-out set (20)
@@ -223,7 +230,7 @@ docker run --rm --network host --memory=512m --env-file .env \
   -e PORT=4100 -e DB_SSLMODE=prefer -e DB_SSL=false querywise   # http://localhost:4100
 ```
 
-**Tests and evaluations:**
+**Tests, evaluations and load test:**
 ```bash
 cd gen-service && pytest -q                                          # 154 tests
 cd api && npm test                                                   # 11 tests
@@ -234,6 +241,7 @@ python evals/retrieval_recall.py                                     # retrieval
 python evals/run_eval.py --label my_run --sleep 12                   # development set
 python evals/run_eval.py --dataset evals/holdout.jsonl --label x     # held-out set
 ```
+Load testing: see [`loadtest/README.md`](loadtest/README.md).
 
 **MCP server:** `python mcp-server/smoke_test.py` starts it the way an AI assistant would, lists its tools and calls them (against the local generation service).
 
@@ -262,15 +270,16 @@ Every setting is listed and explained in [`.env.example`](.env.example). The mai
 - **One guarded front door.** The web API and the MCP server are both thin clients of the generation service, so every caller, human or AI agent, passes through the same safety layers, budget and logs.
 - **Optional dependencies fail open, safety fails closed.** If Redis or Langfuse is unavailable, the app keeps working without them. If validation, the cost check or the database refuses a query, the query never runs.
 - **Fit the architecture to the platform.** Free hosting wakes sleeping services reliably only for browsers, so the two backends share one container rather than calling each other across the platform. The memory budget was verified locally first.
+- **Measure capacity, not just speed.** The load test reports where performance holds (5 req/s) and where it degrades (10 req/s on one CPU), rather than a single flattering number.
 - **Provider-independent.** Moving from Gemini (a free tier of 20 requests a day) to Groq took three configuration lines.
 
 ## Known limitations
 - **Business terms only match listed phrasings;** "stopped renting" was misread as "never rented" on the held-out set.
 - **An undefined term is refused** rather than clarified with a question.
 - **One schema, self-written test sets.** Pagila is a well-known public sample database and likely appears in model training data, so accuracy on a private, messier schema would probably be lower.
-- **Free hosting sleeps when idle;** the first visit after a quiet period waits about a minute.
-- **Memory headroom is modest:** about 456 MB used of the free tier's 512 MB.
-- **The deployed MCP use case needs the generation service reachable;** in production it is private, so the MCP server is used against a local setup.
+- **Free hosting sleeps when idle,** and the live instance has only a fraction of one CPU: the first visit after a quiet period waits about a minute, and the live site is sized for demo traffic.
+- **Memory headroom is modest:** about 485 MB of 512 MB at peak load.
+- **The deployed generation service is private,** so the MCP server is used against a local setup.
 - **The token is stored in `localStorage`;** an httpOnly cookie would be more robust against XSS.
 
 **Next steps:**
@@ -293,8 +302,8 @@ Every setting is listed and explained in [`.env.example`](.env.example). The mai
 | 8 | React UI: SQL view, auto-charts, history, feedback | ✅ |
 | — | Held-out evaluation | ✅ |
 | 9 | Redis answer cache, Langfuse tracing | ✅ |
-| 10 | API, UI and MCP tests; GitHub Actions CI; manual accuracy gate | ✅ |
+| 10 | API, UI and MCP tests; GitHub Actions CI; accuracy gate | ✅ |
 | 11 | Deployment: one-container Docker service on Render, Neon, Upstash | ✅ |
-| 12 | Load testing (k6) | ⏳ |
+| 12 | Load testing (k6) | ✅ |
 | 13 | MCP server | ✅ |
-| 14 | Demo video, final documentation | ⏳ |
+| 14 | Demo video | ⏳ |
